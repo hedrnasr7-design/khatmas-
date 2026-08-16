@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <title>مجربات كاظم الغيظ</title>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+</head>
+<body>
+    <div id="content">جاري التحميل...</div>
+    <script>
+        const firebaseConfig = { databaseURL: "https://khatmas-app-default-rtdb.firebaseio.com" };
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.database();
+        
+        db.ref('khatmas').on('value', (snapshot) => {
+            const data = snapshot.val();
+            if (data) {
+                document.getElementById('content').innerText = "تم الاتصال بنجاح! يوجد " + Object.keys(data).length + " ختمات.";
+            } else {
+                document.getElementById('content').innerText = "تم الاتصال، لكن لا توجد بيانات تحت مسار 'khatmas'.";
+            }
+        });
+    </script>
+</body>
+</html>
