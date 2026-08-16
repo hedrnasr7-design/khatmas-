@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>مجربات كاظم الغيظ</title>
+    
+    <link href="https://fonts.googleapis.com/css2?family=Amiri:wght@700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Amiri', serif; background-color: #fcfcf0; margin: 0; padding: 15px; text-align: center; }
+        .header-box { background-color: #000000; color: #d4af37; padding: 25px; border-radius: 12px; margin-bottom: 15px; font-weight: bold; cursor: pointer; font-size: 28px; border: 2px solid #1b4332; }
+        .admin-form { display: none; background: #eee; padding: 15px; border-radius: 12px; margin-bottom: 20px; border: 2px dashed #1b4332; text-align: right; }
+        .admin-khatma-row { display: flex; justify-content: space-between; align-items: center; background: #fff; padding: 10px; margin: 5px 0; border-radius: 6px; border: 1px solid #ccc; }
+        .search-box { width: 100%; padding: 12px; margin-bottom: 10px; border-radius: 8px; border: 2px solid #1b4332; font-size: 18px; box-sizing: border-box; text-align: right; }
+        .tabs-container { display: flex; gap: 10px; margin-bottom: 15px; }
+        .tab-btn { flex: 1; padding: 10px; border: 2px solid #333; border-radius: 8px; font-weight: 900; cursor: pointer; font-size: 19px; font-family: 'Amiri', serif; color: #fff; }
+        #allTab { background-color: #1b4332; }
+        #imagesTab { background-color: #8B4513; }
+        #favTab { background-color: #4A0E4E; }
+        .tab-btn.active { border: 3px solid #d4af37; transform: scale(1.03); }
+        .khatma-item { background: #1b4332; color: #fff; padding: 15px; margin: 8px 0; border-radius: 8px; display: flex; justify-content: space-between; align-items: center; font-size: 20px; font-weight: bold; }
+        .khatma-title { flex: 1; cursor: pointer; text-align: right; }
+        .loading-box { background: #fffdf0; border: 2px solid #1b4332; padding: 20px; border-radius: 12px; margin: 20px auto; max-width: 300px; font-size: 20px; font-weight: bold; color: #000; }
+        .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); z-index: 1000; justify-content: center; align-items: center; box-sizing: border-box; padding: 15px; }
+        .modal-card { background: #fffdf0; width: 100%; max-width: 500px; border-radius: 15px; border: 3px solid #1b4332; text-align: right; margin: auto; box-sizing: border-box; max-height: 90vh; display: flex; flex-direction: column; }
+        .modal-header { background: #1b4332; color: #d4af37; padding: 15px; font-size: 22px; border-bottom: 2px solid #d4af37; text-align: center; }
+        .modal-body { padding: 20px; font-size: 20px; overflow-y: auto; text-align: right; line-height: 1.8; color: #000; flex: 1; }
+        .close-btn { background-color: #1b4332; color: #d4af37; padding: 10px 30px; border-radius: 8px; border: 1px solid #d4af37; cursor: pointer; font-size: 18px; font-weight: bold; }
+    </style>
+    
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+</head>
+<body>
+
+    <div class="header-box" id="adminTrigger">مجربات كاظم الغيظ</div>
+    
+    <div class="admin-form" id="adminForm">
+        <h3 style="margin-top:0;">لوحة الإدارة</h3>
+        <div id="adminListContainer" style="max-height: 150px; overflow-y: auto;"></div>
+        <hr>
+        <input type="hidden" id="editKeyId">
+        <input type="text" id="singleTitle" placeholder="عنوان الختمة..." style="width:100%; padding:8px; margin-bottom:5px; box-sizing: border-box;">
+        <textarea id="singleContent" placeholder="محتوى الختمة..." style="width:100%; height:100px; box-sizing: border-box;"></textarea>
+        <button id="saveSingleBtn" style="width:100%; padding:10px; background:#1b4332; color:white; border:none; font-weight:bold; cursor:pointer; margin-top:5px;">حفظ / تعديل</button>
+    </div>
+
+    <input type="text" id="searchInput" class="search-box" placeholder="ابحث باسم الختمة..." oninput="filterKhatmas()">
+    <div class="tabs-container">
+        <button class="tab-btn active" id="allTab" onclick="switchTab('all')">الختمات</button>
+        <button class="tab-btn" id="imagesTab" onclick="switchTab('images')">ختمات مصورة</button>
+        <button class="tab-btn" id="favTab" onclick="switchTab('fav')">المفضلة</button>
+    </div>
+
+    <div id="listContainer">
+        <div class="loading-box">جاري تحميل الختمات...</div>
+    </div>
+
+    <div class="modal-overlay" id="modalOverlay">
+        <div class="modal-card">
+            <div class="modal-header" id="displayTitle"></div>
+            <div class="modal-body" id="displayContent"></div>
+            <div style="padding:15px; text-align:center;"><button class="close-btn" onclick="document.getElementById('modalOverlay').style.display='none'">إغلاق</button></div>
+        </div>
+    </div>
+
+    <script>
+        const firebaseConfig = { databaseURL: "https://khatmas-app-default-rtdb.firebaseio.com" };
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.database();
+
+        let allKhatmas = {};
+        let favorites = JSON.parse(localStorage.getItem('user_favorites')) || [];
+        let loadedFlag = false;
+
+        document.getElementById('adminTrigger').onclick = () => {
+            if(prompt("كلمة السر:") === "123456") {
+                const form = document.getElementById('adminForm');
+                form.style.display = (form.style.display === 'block') ? 'none' : 'block';
+            }
+        };
+
+        // مؤمان أمان لفك التعليق فوراً بعد ثانيتين حتى لو لم يستجب فايبربيس
+        setTimeout(() => {
+            if (!loadedFlag) {
+                loadedFlag = true;
+                filterKhatmas();
+                renderAdminList(allKhatmas);
+            }
+        }, 2000);
+
+        db.ref('khatmas').on('value', (snapshot) => {
+            loadedFlag = true;
+            const data = snapshot.val();
+            if (data) {
+                allKhatmas = data;
+            } else {
+                allKhatmas = {};
+            }
+            filterKhatmas();
+            renderAdminList(allKhatmas);
+        }, (error) => {
+            loadedFlag = true;
+            filterKhatmas();
+        });
+
+        window.renderList = (data, view = 'all') => {
+            const container = document.getElementById('listContainer');
+            container.innerHTML = '';
+            const keys = Object.keys(data || {});
+            
+            if (keys.length === 0) {
+                container.innerHTML = '<p style="color:#333; font-size:18px; font-weight:bold;">لا توجد ختمات مضافة حالياً. افتح لوحة الإدارة (اضغط على العنوان بالأعلى) وأضف ختمتك الأولى!</p>';
+                return;
+            }
+
+            let htmlContent = '';
+            keys.forEach(key => {
+                const item = data[key];
+                const hasImage = item.image && item.image.trim() !== "";
+                
+                if (view === 'fav' && !favorites.includes(key)) return;
+                if (view === 'all' && hasImage) return;
+                if (view === 'images' && !hasImage) return;
+
+                const isFav = favorites.includes(key) ? '❤️' : '🤍';
+                htmlContent += `<div class="khatma-item">
+                    <div class="khatma-title" onclick="show('${key}')">${item.title || "بدون عنوان"}</div>
+                    <button onclick="toggleFav('${key}')" style="background:none; border:none; font-size:20px; cursor:pointer;">${isFav}</button>
+                </div>`;
+            });
+
+            container.innerHTML = htmlContent || '<p style="color:#666;">لا توجد نتائج مطابقة.</p>';
+        };
+
+        window.renderAdminList = (data) => {
+            const container = document.getElementById('adminListContainer');
+            container.innerHTML = '';
+            const keys = Object.keys(data || {});
+            
+            if (keys.length === 0) {
+                container.innerHTML = '<p style="color:#666; font-size:14px; text-align:center;">لا توجد ختمات.</p>';
+                return;
+            }
+            
+            keys.forEach(key => {
+                const title = data[key].title || "بدون عنوان";
+                container.innerHTML += `<div class="admin-khatma-row">
+                    <span>${title}</span>
+                    <div>
+                        <button onclick="edit('${key}')">✏️</button> 
+                        <button onclick="del('${key}')" style="color:red;">🗑️</button>
+                    </div>
+                </div>`;
+            });
+        };
+
+        window.show = (key) => {
+            if (allKhatmas[key]) {
+                document.getElementById('displayTitle').innerText = allKhatmas[key].title || 'بدون عنوان';
+                const displayContent = document.getElementById('displayContent');
+                let htmlOutput = '';
+                if (allKhatmas[key].image) {
+                    htmlOutput += `<img src="${allKhatmas[key].image}" style="max-width:100%; border-radius:8px; margin-bottom:10px;">`;
+                }
+                if (allKhatmas[key].content) {
+                    htmlOutput += `<div>${allKhatmas[key].content.replace(/\n/g, '<br>')}</div>`;
+                }
+                displayContent.innerHTML = htmlOutput || 'لا يوجد محتوى.';
+                document.getElementById('modalOverlay').style.display = 'flex';
+            }
+        };
+
+        window.toggleFav = (key) => {
+            const idx = favorites.indexOf(key);
+            idx > -1 ? favorites.splice(idx, 1) : favorites.push(key);
+            localStorage.setItem('user_favorites', JSON.stringify(favorites));
+            filterKhatmas();
+        };
+
+        window.del = async (key) => { 
+            if(confirm("حذف هذه الختمة؟")) {
+                await db.ref(`khatmas/${key}`).remove();
+                alert("تم الحذف!");
+            }
+        };
+        
+        window.edit = (key) => {
+            document.getElementById('editKeyId').value = key;
+            document.getElementById('singleTitle').value = allKhatmas[key].title || '';
+            document.getElementById('singleContent').value = allKhatmas[key].content || '';
+        };
+
+        document.getElementById('saveSingleBtn').onclick = async () => {
+            const key = document.getElementById('editKeyId').value;
+            const title = document.getElementById('singleTitle').value.trim();
+            const content = document.getElementById('singleContent').value.trim();
+
+            if (!title) { alert("أدخل العنوان!"); return; }
+
+            const data = { title: title, content: content, image: "" };
+            if(key) {
+                await db.ref(`khatmas/${key}`).set(data);
+                alert("تم التعديل!");
+            } else {
+                await db.ref('khatmas').push(data);
+                alert("تمت الإضافة!");
+            }
+            document.getElementById('editKeyId').value = '';
+            document.getElementById('singleTitle').value = '';
+            document.getElementById('singleContent').value = '';
+        };
+
+        window.switchTab = (tab) => {
+            document.getElementById('allTab').classList.toggle('active', tab === 'all');
+            document.getElementById('imagesTab').classList.toggle('active', tab === 'images');
+            document.getElementById('favTab').classList.toggle('active', tab === 'fav');
+            filterKhatmas();
+        };
+        
+        window.filterKhatmas = () => {
+            const query = document.getElementById('searchInput').value.trim().toLowerCase();
+            const filtered = {};
+            Object.keys(allKhatmas).forEach(k => {
+                const title = (allKhatmas[k].title || "").toLowerCase();
+                if (!query || title.includes(query)) {
+                    filtered[k] = allKhatmas[k];
+                }
+            });
+            const activeTab = document.querySelector('.tab-btn.active').id;
+            let currentView = 'all';
+            if (activeTab === 'imagesTab') currentView = 'images';
+            if (activeTab === 'favTab') currentView = 'fav';
+            renderList(filtered, currentView);
+        };
+    </script>
+</body>
+</html>
