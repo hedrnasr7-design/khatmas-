@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>مجربات كاظم الغيظ</title>
+    <link href="https://fonts.googleapis.com/css2?family=Amiri:wght@700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Amiri', serif; background-color: #fcfcf0; margin: 0; padding: 15px; text-align: center; }
+        .sticky-top { position: sticky; top: 0; background-color: #fcfcf0; z-index: 999; padding-bottom: 10px; }
+        .header-box { background-color: #000; color: #d4af37; padding: 20px; border-radius: 12px; font-weight: bold; cursor: pointer; font-size: 26px; border: 2px solid #1b4332; }
+        .admin-form { display: none; background: #eee; padding: 15px; border-radius: 12px; margin-top: 10px; text-align: right; border: 2px dashed #1b4332; }
+        .admin-section { background: #fff; padding: 10px; border-radius: 8px; margin-bottom: 10px; border: 1px solid #ccc; }
+        .search-box { width: 100%; padding: 10px; border-radius: 8px; border: 2px solid #1b4332; font-size: 18px; box-sizing: border-box; text-align: right; margin-top: 10px; }
+        .tabs { display: flex; gap: 8px; margin-top: 10px; }
+        .tab-btn { flex: 1; padding: 8px; border-radius: 6px; font-weight: bold; cursor: pointer; color: #fff; border: none; font-family: 'Amiri', serif; }
+        #allTab { background: #1b4332; }
+        #imagesTab { background: #8B4513; }
+        #favTab { background: #4A0E4E; }
+        .tab-btn.inactive { background: #ccc; color: #555; }
+        .khatma-item { background: #1b4332; color: #fff; padding: 15px; margin: 8px 0; border-radius: 8px; display: flex; justify-content: space-between; align-items: center; font-size: 20px; font-weight: bold; cursor: pointer; }
+        .khatma-item.image-type { background: #8B4513; }
+        .fav-btn { background: none; border: none; font-size: 22px; cursor: pointer; color: #ccc; }
+        .fav-btn.active { color: #ffd700; }
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); z-index: 1000; justify-content: center; align-items: center; padding: 15px; box-sizing: border-box; }
+        .modal-content { background: #fffdf0; width: 100%; max-width: 500px; max-height: 85vh; border-radius: 12px; padding: 20px; border: 3px solid #1b4332; overflow-y: auto; text-align: right; }
+    </style>
+    <script src="https://www.gstatic.com/firebasejs/7.24.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/7.24.0/firebase-database.js"></script>
+</head>
+<body>
+
+<div class="sticky-top">
+    <div class="header-box" id="adminTrigger">مجربات كاظم الغيظ</div>
+    
+    <div class="admin-form" id="adminForm">
+        <div class="admin-section">
+            <h4>إعدادات الذكاء الاصطناعي (Gemini API)</h4>
+            <input type="password" id="apiKeyInput" placeholder="أدخل مفتاح الـ API هنا" style="width:100%; padding:8px; box-sizing:border-box; margin-bottom:5px;">
+            <button onclick="saveApiKey()" style="background:#000; color:#d4af37; padding:6px 12px; border:none; border-radius:4px; cursor:pointer; font-family:'Amiri',serif;">حفظ المفتاح</button>
+        </div>
+
+        <div class="admin-section">
+            <h4>إدارة الختمات المصورة (بالذكاء الاصطناعي والتسلسل العربي)</h4>
+            <input type="file" id="multiImagesInput" accept="image/*" multiple style="margin-bottom:8px; display:block;">
+            <button id="saveMultiImagesBtn" style="background:#8B4513; color:white; padding:10px; width:100%; border:none; border-radius:5px; cursor:pointer; font-family:'Amiri',serif; font-weight:bold;">رفع وتحليل وتسلسل تلقائي</button>
+            <div id="ocrProgress" style="margin-top:8px; font-weight:bold; color:#1b4332;"></div>
+        </div>
+
+        <div class="admin-section">
+            <h4>إضافة ختمة نصية جديدة</h4>
+            <input type="text" id="newTitle" placeholder="عنوان الختمة" style="width:100%; padding:8px; box-sizing:border-box; margin-bottom:5px;">
+            <textarea id="newContent" placeholder="المحتوى..." rows="3" style="width:100%; padding:8px; box-sizing:border-box; margin-bottom:5px; font-family:'Amiri',serif;"></textarea>
+            <button onclick="addTextKhatma()" style="background:#1b4332; color:white; padding:6px 12px; border:none; border-radius:4px; cursor:pointer; font-family:'Amiri',serif;">إضافة الختمة</button>
+        </div>
+    </div>
+
+    <input type="text" id="searchInput" class="search-box" placeholder="ابحث في العنوان أو المحتوى...">
+    
+    <div class="tabs">
+        <button class="tab-btn" id="allTab" onclick="switchTab('all')">الكل</button>
+        <button class="tab-btn inactive" id="imagesTab" onclick="switchTab('images')">مصورة</button>
+        <button class="tab-btn inactive" id="favTab" onclick="switchTab('fav')">المفضلة</button>
+    </div>
+</div>
+
+<div id="listContainer"></div>
+
+<div class="modal" id="modalOverlay">
+    <div class="modal-content">
+        <div id="displayTitle" style="font-size:22px; font-weight:bold; color:#1b4332; margin-bottom:10px; border-bottom:2px solid #1b4332; padding-bottom:5px;"></div>
+        <div id="displayBody" style="font-size:18px; line-height:1.7;"></div>
+        <br>
+        <button onclick="document.getElementById('modalOverlay').style.display='none'" style="background:#000; color:#d4af37; padding:8px 15px; border:none; border-radius:6px; cursor:pointer; font-family:'Amiri',serif;">إغلاق</button>
+    </div>
+</div>
+
+<script>
+    const firebaseConfig = { databaseURL: "https://khatmas-app-default-rtdb.firebaseio.com" };
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+    
+    let allKhatmas = {};
+    let currentTab = 'all';
+    let favorites = JSON.parse(localStorage.getItem('khatmas_fav') || '[]');
+
+    function toArabicNumber(num) {
+        const ar = ['٠', '١', '٢', '٣', '٤', '٥', '٦', '٧', '٨', '٩'];
+        return num.toString().split('').map(d => ar[d] || d).join('');
+    }
+
+    function extractNumber(title) {
+        if (!title) return 0;
+        const match = title.match(/[٠-٩\d]+/);
+        if (!match) return 0;
+        let val = match[0].replace(/[٠-٩]/g, d => '٠١٢٣٤٥٦٧٨٩'.indexOf(d));
+        return parseInt(val, 10) || 0;
+    }
+
+    function saveApiKey() {
+        const key = document.getElementById('apiKeyInput').value.trim();
+        localStorage.setItem('gemini_api_key', key);
+        alert('تم حفظ المفتاح بنجاح!');
+    }
+
+    function compressImage(file, maxWidth, quality, callback) {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            const img = new Image();
+            img.onload = () => {
+                const canvas = document.createElement('canvas');
+                let w = img.width, h = img.height;
+                if (w > maxWidth) { h = Math.round((h * maxWidth) / w); w = maxWidth; }
+                canvas.width = w; canvas.height = h;
+                canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+                callback(canvas.toDataURL('image/jpeg', quality));
+            };
+            img.src = e.target.result;
+        };
+        reader.readAsDataURL(file);
+    }
+
+    // الرفع والتحليل عبر الذكاء الاصطناعي مع التسلسل العربي المستقل للصور
+    document.getElementById('saveMultiImagesBtn').onclick = async () => {
+        const fileInput = document.getElementById('multiImagesInput');
+        const progressEl = document.getElementById('ocrProgress');
+        const apiKey = localStorage.getItem('gemini_api_key');
+        
+        if (!fileInput.files.length) return alert("اختر صوراً أولاً!");
+        if (!apiKey) return alert("الرجاء إدخال وحفظ مفتاح Gemini API أولاً!");
+
+        // حساب آخر تسلسل للختمات المصورة فقط
+        let maxSeq = 0;
+        Object.values(allKhatmas).forEach(k => {
+            if (k.image && k.image.trim() !== "") {
+                const seq = extractNumber(k.title);
+                if (seq > maxSeq) maxSeq = seq;
+            }
+        });
+
+        const files = Array.from(fileInput.files);
+        let completed = 0;
+        progressEl.innerText = `جاري المعالجة (0 من ${files.length})...`;
+
+        for (let file of files) {
+            maxSeq++;
+            const arabicSeq = toArabicNumber(maxSeq);
+            
+            try {
+                const base64Data = await new Promise((resolve) => {
+                    const reader = new FileReader();
+                    reader.onload = (e) => resolve(e.target.result.split(',')[1]);
+                    reader.readAsDataURL(file);
+                });
+
+                // استدعاء الذكاء الاصطناعي لاستخراج العنوان من الصورة
+                const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        contents: [{
+                            parts: [
+                                { text: "استخرج عنوان الختمة فقط من الصورة بدقة وبدون أي مقدمات." },
+                                { inline_data: { mime_type: file.type || "image/jpeg", data: base64Data } }
+                            ]
+                        }]
+                    })
+                });
+
+                const result = await res.json();
+                let aiTitle = (result.candidates?.[0]?.content?.parts?.[0]?.text || "").trim().replace(/[*#_]/g, '');
+                let finalTitle = `${arabicSeq}. ${aiTitle || "ختمة مصورة"}`;
+
+                await new Promise((resolve) => {
+                    compressImage(file, 500, 0.6, async (compressedBase64) => {
+                        await db.ref('khatmas').push({ title: finalTitle, content: "", image: compressedBase64 });
+                        resolve();
+                    });
+                });
+
+                completed++;
+                progressEl.innerText = `تمت إضافة ${completed} من ${files.length} (التسلسل: ${arabicSeq})`;
+
+            } catch (err) {
+                console.error(err);
+                await new Promise((resolve) => {
+                    compressImage(file, 500, 0.6, async (compressedBase64) => {
+                        await db.ref('khatmas').push({ title: `${arabicSeq}. ختمة مصورة`, content: "", image: compressedBase64 });
+                        resolve();
+                    });
+                });
+                completed++;
+            }
+        }
+
+        alert("تمت إضافة الصور وتحليلها بالتسلسل العربي بنجاح!");
+        progressEl.innerText = "";
+        fileInput.value = "";
+    };
+
+    async function addTextKhatma() {
+        const title = document.getElementById('newTitle').value.trim();
+        const content = document.getElementById('newContent').value.trim();
+        if(!title) return alert('الرجاء إدخال عنوان الختمة');
+        await db.ref('khatmas').push({ title, content, image: "" });
+        document.getElementById('newTitle').value = '';
+        document.getElementById('newContent').value = '';
+        alert('تمت الإضافة بنجاح');
+    }
+
+    db.ref('khatmas').on('value', (s) => {
+        allKhatmas = s.val() || {};
+        renderList();
+    });
+
+    function switchTab(tab) {
+        currentTab = tab;
+        ['all', 'images', 'fav'].forEach(t => {
+            const btn = document.getElementById(t + 'Tab');
+            if(t === tab) btn.classList.remove('inactive');
+            else btn.classList.add('inactive');
+        });
+        renderList();
+    }
+
+    function toggleFav(id, e) {
+        e.stopPropagation();
+        const idx = favorites.indexOf(id);
+        if(idx > -1) favorites.splice(idx, 1);
+        else favorites.push(id);
+        localStorage.setItem('khatmas_fav', JSON.stringify(favorites));
+        renderList();
+    }
+
+    function renderList() {
+        const container = document.getElementById('listContainer');
+        const query = document.getElementById('searchInput').value.trim().toLowerCase();
+        container.innerHTML = '';
+
+        let items = Object.entries(allKhatmas);
+        items.sort((a, b) => extractNumber(a[1].title) - extractNumber(b[1].title));
+
+        items.forEach(([id, khatma]) => {
+            const isImage = khatma.image && khatma.image.trim() !== "";
+            const isFav = favorites.includes(id);
+
+            if(currentTab === 'images' && !isImage) return;
+            if(currentTab === 'fav' && !isFav) return;
+            if(query && !khatma.title.toLowerCase().includes(query) && !(khatma.content && khatma.content.toLowerCase().includes(query))) return;
+
+            const div = document.createElement('div');
+            div.className = `khatma-item ${isImage ? 'image-type' : ''}`;
+            
+            const titleSpan = document.createElement('span');
+            titleSpan.innerText = khatma.title;
+            titleSpan.style.flex = "1";
+            titleSpan.style.textAlign = "right";
+
+            const favBtn = document.createElement('button');
+            favBtn.className = `fav-btn ${isFav ? 'active' : ''}`;
+            favBtn.innerHTML = '★';
+            favBtn.onclick = (e) => toggleFav(id, e);
+
+            div.appendChild(titleSpan);
+            div.appendChild(favBtn);
+
+            div.onclick = () => {
+                document.getElementById('displayTitle').innerText = khatma.title;
+                const body = document.getElementById('displayBody');
+                body.innerHTML = '';
+                if(isImage) {
+                    const img = document.createElement('img');
+                    img.src = khatma.image;
+                    img.style.width = '100%';
+                    img.style.borderRadius = '8px';
+                    body.appendChild(img);
+                } else {
+                    const p = document.createElement('div');
+                    p.style.whiteSpace = 'pre-wrap';
+                    p.innerText = khatma.content || "لا يوجد محتوى";
+                    body.appendChild(p);
+                }
+                document.getElementById('modalOverlay').style.display = 'flex';
+            };
+
+            container.appendChild(div);
+        });
+    }
+
+    document.getElementById('searchInput').oninput = renderList;
+
+    document.getElementById('adminTrigger').onclick = () => {
+        if(prompt("كلمة السر:") === "123456") {
+            const f = document.getElementById('adminForm');
+            f.style.display = f.style.display === 'block' ? 'none' : 'block';
+        }
+    };
+
+    window.onload = () => {
+        const k = localStorage.getItem('gemini_api_key');
+        if(k) document.getElementById('apiKeyInput').value = k;
+    };
+</script>
+</body>
+</html>
