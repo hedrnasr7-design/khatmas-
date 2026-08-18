@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>مجربات كاظم الغيظ</title>
+    
+    <link rel="manifest" href="manifest.json">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="theme-color" content="#1b4332">
+    
+    <link href="https://fonts.googleapis.com/css2?family=Amiri:wght@700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Amiri', serif; background-color: #fcfcf0; margin: 0; padding: 15px; text-align: center; -webkit-user-select: none; user-select: none; }
+        input, textarea, .action-btn { -webkit-user-select: text !important; user-select: text !important; pointer-events: auto !important; }
+        .sticky-top-container { position: sticky; top: 0; background-color: #fcfcf0; z-index: 999; padding-top: 5px; padding-bottom: 5px; box-shadow: 0 4px 6px -4px rgba(0,0,0,0.1); }
+        .header-box { background-color: #000000; color: #d4af37; padding: 20px; border-radius: 12px; margin-bottom: 10px; font-weight: bold; cursor: pointer; font-size: 26px; border: 2px solid #1b4332; }
+        .admin-form { display: none; background: #eee; padding: 15px; border-radius: 12px; margin-bottom: 20px; border: 2px dashed #1b4332; text-align: right; }
+        .admin-section-box { background: #fff; padding: 12px; border-radius: 8px; margin-bottom: 15px; border: 1px solid #ccc; }
+        .admin-section-title { font-size: 18px; font-weight: bold; color: #1b4332; margin-top: 0; margin-bottom: 10px; border-bottom: 2px solid #1b4332; padding-bottom: 5px; }
+        .admin-khatma-row { display: flex; justify-content: space-between; align-items: center; background: #f9f9f9; padding: 8px; margin: 5px 0; border-radius: 6px; border: 1px solid #ddd; font-size: 15px; font-weight: bold; }
+        .search-box { width: 100%; padding: 12px; margin-bottom: 10px; border-radius: 8px; border: 2px solid #1b4332; font-size: 18px; box-sizing: border-box; text-align: right; background: #fff; }
+        .tabs-container { display: flex; gap: 10px; margin-bottom: 15px; }
+        .tab-btn { flex: 1; padding: 10px; border: 2px solid #333; border-radius: 8px; font-weight: 900; cursor: pointer; font-size: 19px; font-family: 'Amiri', serif; color: #fff; transition: all 0.2s ease; box-shadow: 0 3px 6px rgba(0,0,0,0.15); }
+        #allTab { background-color: #1b4332; } #imagesTab { background-color: #8B4513; } #favTab { background-color: #4A0E4E; }
+        .tab-btn.active { border: 3px solid #d4af37; transform: scale(1.03); }
+        .khatma-item { background: #1b4332; color: #fff; padding: 15px; margin: 8px 0; border-radius: 8px; display: flex; justify-content: space-between; align-items: center; font-size: 20px; font-weight: bold; box-shadow: 2px 2px 5px rgba(0,0,0,0.1); }
+        .khatma-title { flex: 1; cursor: pointer; text-align: right; }
+        .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); z-index: 1000; justify-content: center; align-items: center; padding: 15px; }
+        .modal-card { background: #fffdf0; width: 100%; max-width: 500px; border-radius: 15px; border: 3px solid #1b4332; text-align: right; max-height: 90vh; display: flex; flex-direction: column; }
+        .modal-header { background: #1b4332; color: #d4af37; padding: 15px; font-size: 22px; border-bottom: 2px solid #d4af37; text-align: center; }
+        .modal-body { padding: 20px; font-size: 20px; overflow-y: auto; line-height: 1.8; color: #000; flex: 1; }
+        .close-btn { background-color: #1b4332; color: #d4af37; padding: 10px 30px; border-radius: 8px; border: 1px solid #d4af37; cursor: pointer; font-size: 18px; font-weight: bold; }
+    </style>
+    
+    <script src="https://www.gstatic.com/firebasejs/7.24.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/7.24.0/firebase-database.js"></script>
+</head>
+<body oncopy="return false" oncontextmenu="return false">
+
+    <div class="sticky-top-container">
+        <div class="header-box" id="adminTrigger">مجربات كاظم الغيظ</div>
+        <div class="admin-form" id="adminForm">
+            <h3 style="text-align: center;">لوحة الإدارة</h3>
+            <div class="admin-section-box">
+                <input type="password" id="geminiKey" placeholder="Gemini API Key" style="width:100%; padding:8px; margin-bottom:10px;">
+                <button onclick="localStorage.setItem('gemini_api_key', document.getElementById('geminiKey').value); alert('تم حفظ المفتاح');">حفظ مفتاح الذكاء الاصطناعي</button>
+            </div>
+            <div class="admin-section-box">
+                <div class="admin-section-title">إدارة الصور (تسلسل عربي ذكي)</div>
+                <input type="file" id="multiImagesInput" accept="image/*" multiple style="width:100%; margin-bottom:8px;">
+                <button id="saveMultiImagesBtn" style="width:100%; padding:10px; background:#8B4513; color:white; border:none; cursor:pointer;">رفع وتحليل ذكي</button>
+                <div id="ocrProgress" style="margin-top:10px; font-weight:bold;"></div>
+            </div>
+        </div>
+        <input type="text" id="searchInput" class="search-box" placeholder="بحث..." onkeyup="filterKhatmas()">
+        <div class="tabs-container">
+            <button class="tab-btn active" id="allTab" onclick="switchTab('all')">الختمات</button>
+            <button class="tab-btn" id="imagesTab" onclick="switchTab('images')">مصورة</button>
+            <button class="tab-btn" id="favTab" onclick="switchTab('fav')">المفضلة</button>
+        </div>
+    </div>
+
+    <div id="listContainer"></div>
+
+    <div class="modal-overlay" id="modalOverlay">
+        <div class="modal-card">
+            <div class="modal-header" id="displayTitle"></div>
+            <div class="modal-body" id="displayContent"></div>
+            <div style="padding:15px; text-align:center;"><button class="close-btn" onclick="document.getElementById('modalOverlay').style.display='none'">إغلاق</button></div>
+        </div>
+    </div>
+
+    <script>
+        const firebaseConfig = { databaseURL: "https://khatmas-app-default-rtdb.firebaseio.com" };
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.database();
+        let allKhatmas = {}, favorites = JSON.parse(localStorage.getItem('user_favorites') || '[]');
+
+        function toArabic(n) { return n.toString().replace(/\d/g, d => '٠١٢٣٤٥٦٧٨٩'[d]); }
+
+        function extractNum(title) {
+            const m = title.match(/[٠-٩\d]+/);
+            if(!m) return 0;
+            return parseInt(m[0].replace(/[٠-٩]/g, d => '٠١٢٣٤٥٦٧٨٩'.indexOf(d)));
+        }
+
+        document.getElementById('adminTrigger').onclick = () => { if(prompt("كلمة السر:") === "123456") document.getElementById('adminForm').style.display = document.getElementById('adminForm').style.display === 'block' ? 'none' : 'block'; };
+
+        db.ref('khatmas').on('value', s => { allKhatmas = s.val() || {}; filterKhatmas(); });
+
+        document.getElementById('saveMultiImagesBtn').onclick = async () => {
+            const files = document.getElementById('multiImagesInput').files;
+            const key = localStorage.getItem('gemini_api_key');
+            if(!key) return alert("الرجاء حفظ مفتاح Gemini أولاً");
+            
+            let maxSeq = 0;
+            Object.values(allKhatmas).forEach(v => { if(v.image) maxSeq = Math.max(maxSeq, extractNum(v.title)); });
+
+            for(let file of files) {
+                maxSeq++;
+                const reader = new FileReader();
+                reader.onload = async e => {
+                    const base64 = e.target.result.split(',')[1];
+                    let title = toArabic(maxSeq) + ". ختمة مصورة";
+                    try {
+                        const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${key}`, {
+                            method: 'POST', headers: {'Content-Type': 'application/json'},
+                            body: JSON.stringify({contents: [{parts: [{text: "استخرج عنوان الختمة فقط من الصورة"}, {inline_data: {mime_type: "image/jpeg", data: base64}}]}]})
+                        });
+                        const j = await res.json();
+                        title = toArabic(maxSeq) + ". " + (j.candidates[0].content.parts[0].text.replace(/[*#]/g, '').trim());
+                    } catch(e) {}
+                    db.ref('khatmas').push({title, content: "", image: e.target.result});
+                };
+                reader.readAsDataURL(file);
+            }
+            alert("بدأت المعالجة!");
+        };
+
+        window.renderList = (data, view) => {
+            const container = document.getElementById('listContainer');
+            container.innerHTML = '';
+            Object.entries(data).sort((a,b) => extractNum(a[1].title) - extractNum(b[1].title)).forEach(([k, v]) => {
+                if(view === 'images' && !v.image) return;
+                if(view === 'fav' && !favorites.includes(k)) return;
+                if(view === 'all' && v.image) return;
+                
+                const div = document.createElement('div');
+                div.className = 'khatma-item';
+                div.innerHTML = `<div class="khatma-title" onclick="show('${k}')">${v.title}</div><button onclick="toggleFav('${k}')">${favorites.includes(k)?'❤️':'🤍'}</button>`;
+                container.appendChild(div);
+            });
+        };
+
+        window.toggleFav = k => {
+            const i = favorites.indexOf(k);
+            i > -1 ? favorites.splice(i, 1) : favorites.push(k);
+            localStorage.setItem('user_favorites', JSON.stringify(favorites));
+            filterKhatmas();
+        };
+
+        window.show = k => {
+            document.getElementById('displayTitle').innerText = allKhatmas[k].title;
+            document.getElementById('displayContent').innerHTML = allKhatmas[k].image ? `<img src="${allKhatmas[k].image}" style="width:100%">` : allKhatmas[k].content;
+            document.getElementById('modalOverlay').style.display = 'flex';
+        };
+
+        window.switchTab = t => {
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            document.getElementById(t+'Tab').classList.add('active');
+            filterKhatmas();
+        };
+
+        window.filterKhatmas = () => {
+            const q = document.getElementById('searchInput').value;
+            const view = document.querySelector('.tab-btn.active').id.replace('Tab', '');
+            const filtered = {};
+            Object.entries(allKhatmas).forEach(([k, v]) => { if(v.title.includes(q)) filtered[k] = v; });
+            renderList(filtered, view);
+        };
+        
+        window.onload = () => document.getElementById('geminiKey').value = localStorage.getItem('gemini_api_key') || '';
+    </script>
+</body>
+</html>
