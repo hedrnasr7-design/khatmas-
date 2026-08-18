@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>تطبيق إدارة الصور بالذكاء الاصطناعي</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f4f7f6;
+            margin: 0;
+            padding: 20px;
+            direction: rtl;
+        }
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            background: #fff;
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+        }
+        h2 {
+            text-align: center;
+            color: #333;
+        }
+        .settings-box {
+            background: #e9ecef;
+            padding: 10px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        .settings-box input {
+            padding: 8px;
+            width: 70%;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+        .settings-box button {
+            padding: 8px 15px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        .upload-section {
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        input[type="file"] {
+            display: none;
+        }
+        .upload-btn {
+            background-color: #4CAF50;
+            color: white;
+            padding: 10px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            display: inline-block;
+            font-size: 16px;
+        }
+        #loading {
+            display: none;
+            text-align: center;
+            color: #ff9800;
+            margin: 10px 0;
+            font-weight: bold;
+        }
+        .gallery {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+            gap: 15px;
+            margin-top: 20px;
+        }
+        .image-card {
+            background: #fafafa;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            overflow: hidden;
+            text-align: center;
+            padding-bottom: 10px;
+        }
+        .image-card img {
+            width: 100%;
+            height: 120px;
+            object-fit: cover;
+        }
+        .image-card p {
+            padding: 0 8px;
+            font-size: 14px;
+            color: #555;
+            margin: 8px 0 0 0;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2>لوحة إدارة وتسمية الصور تلقائياً</h2>
+
+    <!-- إعدادات إدخال المفتاح محلياً -->
+    <div class="settings-box">
+        <p style="margin: 0 0 8px 0; font-size: 14px; color: #444;">أدخل مفتاح Gemini API الخاص بك (سيحفظ في متصفحك فقط):</p>
+        <input type="password" id="apiKeyInput" placeholder="أصصق المفتاح هنا...">
+        <button onclick="saveApiKey()">حفظ المفتاح</button>
+    </div>
+    
+    <div class="upload-section">
+        <label for="imageInput" class="upload-btn">اختر صورة للرفع والتسمية</label>
+        <input type="file" id="imageInput" accept="image/*">
+        <div id="loading">جاري معالجة الصورة وتسميتها عبر الذكاء الاصطناعي...</div>
+    </div>
+
+    <div class="gallery" id="galleryContainer"></div>
+</div>
+
+<script>
+    // جلب المفتاح المحفوظ مسبقاً في المتصفح إن وجد
+    function getApiKey() {
+        return localStorage.getItem('gemini_api_key') || '';
+    }
+
+    function saveApiKey() {
+        const key = document.getElementById('apiKeyInput').value.trim();
+        if (key) {
+            localStorage.setItem('gemini_api_key', key);
+            alert('تم حفظ المفتاح بنجاح في متصفحك!');
+        } else {
+            alert('الرجاء إدخال مفتاح صحيح.');
+        }
+    }
+
+    // تعبئة حقل الإدخال إذا كان المفتاح مخزناً مسبقاً
+    window.onload = function() {
+        const savedKey = getApiKey();
+        if (savedKey) {
+            document.getElementById('apiKeyInput').value = savedKey;
+        }
+    };
+
+    const imageInput = document.getElementById('imageInput');
+    const loadingDiv = document.getElementById('loading');
+    const galleryContainer = document.getElementById('galleryContainer');
+
+    imageInput.addEventListener('change', async (event) => {
+        const file = event.target.files[0];
+        if (!file) return;
+
+        const apiKey = getApiKey();
+        if (!apiKey) {
+            alert('الرجاء إدخال وحفظ مفتاح Gemini API في الأعلى أولاً!');
+            imageInput.value = '';
+            return;
+        }
+
+        loadingDiv.style.display = 'block';
+
+        try {
+            const title = await generateImageTitle(file, apiKey);
+            
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const card = document.createElement('div');
+                card.className = 'image-card';
+                card.innerHTML = `
+                    <img src="${e.target.result}" alt="صورة مرفوعة">
+                    <p>${title}</p>
+                `;
+                galleryContainer.appendChild(card);
+            };
+            reader.readAsDataURL(file);
+
+        } catch (error) {
+            console.error("خطأ:", error);
+            alert("حدث خطأ أثناء معالجة الصورة. تأكد من صحة المفتاح.");
+        } finally {
+            loadingDiv.style.display = 'none';
+            imageInput.value = '';
+        }
+    });
+
+    async function generateImageTitle(imageFile, apiKey) {
+        const base64Data = await convertFileToBase64(imageFile);
+        const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+        
+        const payload = {
+            contents: [{
+                parts: [
+                    { text: "صف هذه الصورة بكلمات عربية قصيرة ونظيفة جداً لتكون عنواناً لها بدون مقدمات:" },
+                    {
+                        inline_data: {
+                            mime_type: imageFile.type,
+                            data: base64Data
+                        }
+                    }
+                ]
+            }]
+        };
+
+        const res = await fetch(endpoint, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+
+        const data = await res.json();
+        if (data.candidates && data.candidates[0].content) {
+            return data.candidates[0].content.parts[0].text.trim();
+        } else {
+            return "صورة بدون عنوان";
+        }
+    }
+
+    function convertFileToBase64(file) {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.readAsDataURL(file);
+            reader.onload = () => resolve(reader.result.split(',')[1]);
+            reader.onerror = error => reject(error);
+        });
+    }
+</script>
+
+</body>
+</html>
