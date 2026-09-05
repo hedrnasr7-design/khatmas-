@@ -1,0 +1,13 @@
+{
+  "rules": {
+    ".read": true,
+    ".write": false,
+    "khatmas": {
+      ".read": true,
+      ".write": "auth != null",
+      "$khatmaId": {
+        ".validate": "newData.val() === null || (newData.hasChildren(['title', 'content', 'image']) && newData.child('title').isString() && newData.child('content').isString() && newData.child('image').isString())"
+      }
+    }
+  }
+}
