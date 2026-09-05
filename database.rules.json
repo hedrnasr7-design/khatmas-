@@ -8,6 +8,45 @@
       "$khatmaId": {
         ".validate": "newData.val() == null || (newData.hasChildren(['title', 'content', 'image']) && newData.child('title').isString() && newData.child('title').val().length > 0 && newData.child('title').val().length <= 300 && newData.child('content').isString() && newData.child('image').isString())"
       }
+    },
+    "clubUsers": {
+      ".read": "auth != null && auth.token.email == 'hedrnasr7@gmail.com'",
+      "$uid": {
+        ".read": "auth != null && (auth.uid == $uid || auth.token.email == 'hedrnasr7@gmail.com')",
+        ".write": "auth != null && (auth.token.email == 'hedrnasr7@gmail.com' || (auth.uid == $uid && ((!data.exists() && newData.child('status').val() == 'pending') || (data.child('status').val() == 'pending' && newData.child('status').val() == 'pending'))))",
+        ".validate": "newData.hasChildren(['username','phone','status','createdAt']) && newData.child('username').isString() && newData.child('phone').isString() && (newData.child('status').val() == 'pending' || newData.child('status').val() == 'approved' || newData.child('status').val() == 'rejected')"
+      }
+    },
+    "clubPosts": {
+      ".read": "auth != null && (root.child('clubUsers').child(auth.uid).child('status').val() == 'approved' || auth.token.email == 'hedrnasr7@gmail.com')",
+      "$postId": {
+        ".write": "auth != null && (auth.token.email == 'hedrnasr7@gmail.com' || (auth.uid == newData.child('authorId').val() && root.child('clubUsers').child(auth.uid).child('status').val() == 'approved'))",
+        ".validate": "newData.hasChildren(['authorId','authorName','text','createdAt']) && newData.child('authorId').isString() && newData.child('authorName').isString() && newData.child('text').isString() && newData.child('text').val().length > 0 && newData.child('text').val().length <= 3000"
+      }
+    },
+    "clubPostLikes": {
+      "$postId": {
+        "$uid": { ".write": "auth != null && (auth.uid == $uid && root.child('clubUsers').child(auth.uid).child('status').val() == 'approved' || auth.token.email == 'hedrnasr7@gmail.com')", ".validate": "newData.val() == true || newData.val() == null" }
+      }
+    },
+    "clubPostComments": {
+      "$postId": {
+        "$commentId": {
+          ".read": "auth != null && (root.child('clubUsers').child(auth.uid).child('status').val() == 'approved' || auth.token.email == 'hedrnasr7@gmail.com')",
+          ".write": "auth != null && (auth.token.email == 'hedrnasr7@gmail.com' || (auth.uid == newData.child('authorId').val() && root.child('clubUsers').child(auth.uid).child('status').val() == 'approved'))",
+          ".validate": "newData.hasChildren(['authorId','authorName','text','createdAt']) && newData.child('text').isString() && newData.child('text').val().length > 0 && newData.child('text').val().length <= 1000"
+        }
+      }
+    },
+    "clubMessages": {
+      ".read": "auth != null && auth.token.email == 'hedrnasr7@gmail.com'",
+      "$uid": {
+        ".read": "auth != null && (auth.uid == $uid || auth.token.email == 'hedrnasr7@gmail.com')",
+        "$messageId": {
+          ".write": "auth != null && (auth.token.email == 'hedrnasr7@gmail.com' || (auth.uid == $uid && root.child('clubUsers').child(auth.uid).child('status').val() == 'approved'))",
+          ".validate": "newData.hasChildren(['fromId','fromName','text','createdAt']) && newData.child('text').isString() && newData.child('text').val().length > 0 && newData.child('text').val().length <= 3000"
+        }
+      }
     }
   }
 }
