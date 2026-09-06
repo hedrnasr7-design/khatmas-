@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>مجربات كاظم الغيظ</title>
+    
+    <!-- ربط Firebase وملفات التنسيق -->
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+
+    <style>
+        :root {
+            --primary: #1b4332;
+            --secondary: #2d6a4f;
+            --accent: #52b788;
+            --bg: #fdfbf7;
+            --text: #212529;
+            --card-bg: #ffffff;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            margin: 0;
+            padding: 10px;
+            direction: rtl;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        /* حاوية الصورة الرئيسية وإخفاء أي نص قديم إجبارياً */
+        .header-box {
+            width: 100%;
+            cursor: pointer;
+            margin-bottom: 15px;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            background: none;
+            padding: 0;
+            border: 2px solid var(--primary);
+            font-size: 0 !important;
+            color: transparent !important;
+        }
+
+        .header-box * {
+            font-size: initial;
+            color: initial;
+        }
+
+        .header-box img {
+            width: 100%;
+            height: auto;
+            display: block;
+        }
+
+        .search-section {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+
+        .mic-btn {
+            background-color: var(--primary);
+            color: white;
+            border: none;
+            border-radius: 12px;
+            padding: 0 15px;
+            cursor: pointer;
+            font-size: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .search-input {
+            flex: 1;
+            padding: 12px 15px;
+            font-size: 16px;
+            border: 2px solid var(--primary);
+            border-radius: 12px;
+            outline: none;
+            background: var(--card-bg);
+        }
+
+        .tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+
+        .tab-btn {
+            flex: 1;
+            padding: 12px;
+            border: none;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            color: white;
+            transition: 0.2s;
+        }
+
+        #allTab { background-color: var(--primary); }
+        #imagesTab { background-color: #7f4f24; }
+        #favTab { background-color: #560bad; }
+
+        .tab-btn.active {
+            opacity: 1;
+            box-shadow: inset 0 0 0 3px #fff;
+        }
+
+        .tab-btn:not(.active) {
+            opacity: 0.7;
+        }
+
+        .list-container {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .khatma-item {
+            background: var(--card-bg);
+            padding: 15px;
+            border-radius: 12px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            border: 1px solid #e0e0e0;
+        }
+
+        .khatma-title {
+            font-size: 18px;
+            font-weight: bold;
+            cursor: pointer;
+            flex: 1;
+            color: var(--primary);
+        }
+
+        /* شاشة العرض (Modal) */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            padding: 15px;
+            box-sizing: border-box;
+        }
+
+        .modal-content {
+            background: white;
+            width: 100%;
+            max-width: 600px;
+            max-height: 90vh;
+            border-radius: 15px;
+            padding: 20px;
+            overflow-y: auto;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+        }
+
+        .close-modal {
+            background: #d90429;
+            color: white;
+            border: none;
+            padding: 8px 15px;
+            border-radius: 8px;
+            cursor: pointer;
+            float: left;
+            font-weight: bold;
+        }
+
+        /* لوحة التحكم والإدارة */
+        .admin-form {
+            display: none;
+            background: #e9ecef;
+            padding: 20px;
+            border-radius: 12px;
+            margin-top: 20px;
+            border: 2px dashed var(--primary);
+        }
+
+        .admin-form input, .admin-form textarea {
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 10px;
+            border: 1px solid #ccc;
+            border-radius: 8px;
+            box-sizing: border-box;
+            font-family: inherit;
+        }
+
+        .admin-btn {
+            background-color: var(--primary);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: bold;
+            margin-top: 5px;
+        }
+
+        .admin-khatma-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: white;
+            padding: 8px 12px;
+            margin-bottom: 5px;
+            border-radius: 6px;
+            border: 1px solid #ddd;
+        }
+
+        .progress-bar-container {
+            width: 100%;
+            background-color: #e0e0e0;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            overflow: hidden;
+            height: 8px;
+        }
+
+        .progress-bar-fill {
+            height: 100%;
+            width: 0%;
+            background-color: var(--accent);
+            transition: width 0.2s;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    
+    <!-- شريط تقدم التحميل -->
+    <div class="progress-bar-container">
+        <div id="progressBarFill" class="progress-bar-fill"></div>
+    </div>
+
+    <!-- مكان العنوان (الصورة وحدها فقط، مع إلغاء أي نص قديم تلقائياً) -->
+    <div class="header-box" id="adminTrigger" title="انقر هنا لتسجيل دخول المشرف">
+        <img src="1000220385.jpg" alt="مجربات كاظم الغيظ" onerror="this.onerror=null; this.src='data:image/svg+xml;utf8,<svg xmlns=\'http://www.w3.org/2000/svg\' width=\'800\' height=\'150\'><rect width=\'100%\' height=\'100%\' fill=\'%230b2215\'/><text x=\'50%\' y=\'55%\' dominant-baseline=\'middle\' text-anchor=\'middle\' fill=\'%23d4af37\' font-size=\'32\' font-family=\'Arial\'>مجربات كاظم الغيظ</text></svg>';">
+    </div>
+
+    <!-- شريط البحث والصوت -->
+    <div class="search-section">
+        <button class="mic-btn" onclick="startSearchDictation()" title="بحث صوتي">🎙️</button>
+        <input type="text" id="searchInput" class="search-input" placeholder="ابحث باسم الختمة أو بكلمة منها..." oninput="filterKhatmas()">
+    </div>
+
+    <!-- الأقسام (التابات) -->
+    <div class="tabs">
+        <button id="allTab" class="tab-btn active" onclick="switchTab('all')">الختمات</button>
+        <button id="imagesTab" class="tab-btn" onclick="switchTab('images')">ختمات مصورة</button>
+        <button id="favTab" class="tab-btn" onclick="switchTab('fav')">المفضلة</button>
+    </div>
+
+    <!-- قائمة عرض الختمات -->
+    <div id="listContainer" class="list-container">
+        <!-- يتم تعبئتها ديناميكياً من app.js -->
+    </div>
+
+    <!-- لوحة التحكم للإدارة -->
+    <div id="adminForm" class="admin-form">
+        <h3>لوحة تحكم المشرف</h3>
+        <button onclick="closeAdminForm()" style="background:#6c757d; color:white; border:none; padding:5px 10px; border-radius:5px; cursor:pointer; margin-bottom:15px;">إغلاق لوحة التحكم</button>
+        
+        <div style="margin-bottom: 15px; background: #fff; padding: 10px; border-radius: 8px;">
+            <h4>إعدادات مفتاح Gemini AI (للتعرّف على الصور)</h4>
+            <input type="password" id="geminiApiKeyInput" placeholder="أدخل مفتاح Gemini API هنا">
+            <button class="admin-btn" onclick="saveGeminiKey()">حفظ المفتاح</button>
+        </div>
+
+        <div style="margin-bottom: 15px; background: #fff; padding: 10px; border-radius: 8px;">
+            <h4>إضافة / تعديل ختمة مفردة</h4>
+            <input type="hidden" id="editKeyId">
+            <div style="display: flex; gap: 5px;">
+                <input type="text" id="singleTitle" placeholder="عنوان الختمة">
+                <button type="button" onclick="startDictation('singleTitle')" style="padding: 0 10px; border-radius: 8px; border: 1px solid #ccc; cursor: pointer;">🎙️</button>
+            </div>
+            <div style="display: flex; gap: 5px; align-items: flex-start;">
+                <textarea id="singleContent" rows="4" placeholder="محتوى الختمة"></textarea>
+                <button type="button" onclick="startDictation('singleContent')" style="padding: 10px; border-radius: 8px; border: 1px solid #ccc; cursor: pointer;">🎙️</button>
+            </div>
+            <div style="margin-bottom: 10px;">
+                <label>صورة الختمة (اختياري):</label>
+                <input type="file" id="singleImageFile" accept="image/*">
+                <img id="currentImagePreview" style="max-width: 100px; display: none; margin-top: 5px; border-radius: 5px;" alt="معاينة الصورة">
+            </div>
+            <div style="display: flex; gap: 5px; margin-bottom: 10px;">
+                <button type="button" onclick="selectAllText()" style="padding: 5px 10px; font-size: 12px; cursor: pointer;">تحديد الكل</button>
+                <button type="button" onclick="copyText()" style="padding: 5px 10px; font-size: 12px; cursor: pointer;">نسخ</button>
+                <button type="button" onclick="cutText()" style="padding: 5px 10px; font-size: 12px; cursor: pointer;">قص</button>
+            </div>
+            <button class="admin-btn" id="saveSingleBtn">حفظ الختمة</button>
+            <button class="admin-btn" onclick="resetAdminForm()" style="background: #6c757d;">تفريغ الحقول</button>
+        </div>
+
+        <div style="margin-bottom: 15px; background: #fff; padding: 10px; border-radius: 8px;">
+            <h4>رفع ختمات مصورة متعددة مع التعرف الذكي (OCR)</h4>
+            <input type="file" id="multiImagesInput" multiple accept="image/*">
+            <button class="admin-btn" id="saveMultiImagesBtn">رفع ومعالجة الصور</button>
+            <p id="ocrProgress" style="font-weight: bold; color: var(--primary); margin-top: 5px;"></p>
+        </div>
+
+        <div style="background: #fff; padding: 10px; border-radius: 8px; margin-bottom: 15px;">
+            <h4>إضافة جماعية نصية</h4>
+            <textarea id="bulkArea" rows="4" placeholder="العنوان&#10;المحتوى&#10;~~~&#10;العنوان الثاني..."></textarea>
+            <button class="admin-btn" id="saveBtn">حفظ الإضافة الجماعية</button>
+        </div>
+
+        <div>
+            <h4>قائمة الختمة النصية</h4>
+            <div id="adminTextListContainer" style="max-height: 200px; overflow-y: auto; background: #fff; padding: 5px; border-radius: 6px;"></div>
+            
+            <h4 style="margin-top: 15px;">قائمة الختمة المصورة</h4>
+            <div id="adminImageListContainer" style="max-height: 200px; overflow-y: auto; background: #fff; padding: 5px; border-radius: 6px;"></div>
+        </div>
+    </div>
+
+</div>
+
+<!-- نافذة عرض محتوى الختمة (Modal) -->
+<div id="modalOverlay" class="modal-overlay" onclick="if(event.target === this) this.style.display='none'">
+    <div class="modal-content">
+        <button class="close-modal" onclick="document.getElementById('modalOverlay').style.display='none'">إغلاق</button>
+        <h2 id="displayTitle" style="margin-top: 40px; color: var(--primary); border-bottom: 2px solid var(--accent); padding-bottom: 5px;"></h2>
+        <div id="displayContent" style="line-height: 1.8; font-size: 16px; margin-top: 15px; white-space: pre-line;"></div>
+    </div>
+</div>
+
+<!-- ربط ملف العمليات البرمجية -->
+<script src="app.js"></script>
+</body>
+</html>
