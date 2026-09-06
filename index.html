@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>مجربات كاظم الغيظ</title>
+
+    <link rel="manifest" href="manifest.json">
+    <link rel="icon" href="favicon-96.png" type="image/png" sizes="96x96">
+    <link rel="apple-touch-icon" href="apple-touch-icon.png" sizes="180x180">
+    <meta name="apple-mobile-web-app-title" content="مجربات">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="theme-color" content="#1b4332">
+
+    <style>@font-face { font-family: 'Amiri'; font-style: normal; font-weight: 700; font-display: swap; src: url('amiri-bold.ttf') format('truetype'); }</style>
+    <style>
+        body { font-family: 'Amiri', serif; background-color: #fcfcf0; margin: 0; padding: 15px; text-align: center; -webkit-user-select: none; user-select: none; }
+
+        input, textarea, .action-btn {
+            -webkit-user-select: text !important;
+            user-select: text !important;
+            pointer-events: auto !important;
+        }
+
+        .sticky-top-container {
+            position: sticky;
+            top: 0;
+            background-color: #fcfcf0;
+            z-index: 999;
+            padding-top: 5px;
+            padding-bottom: 5px;
+            box-shadow: 0 4px 6px -4px rgba(0,0,0,0.1);
+        }
+
+        .header-box { background-color: #000000; color: #d4af37; padding: 20px; border-radius: 12px; margin-bottom: 10px; font-weight: bold; cursor: pointer; font-size: 26px; border: 2px solid #1b4332; }
+        .admin-form { display: none; background: #eee; padding: 15px; border-radius: 12px; margin-bottom: 20px; border: 2px dashed #1b4332; text-align: right; }
+
+        .admin-section-box { background: #fff; padding: 12px; border-radius: 8px; margin-bottom: 15px; border: 1px solid #ccc; }
+        .admin-section-title { font-size: 18px; font-weight: bold; color: #1b4332; margin-top: 0; margin-bottom: 10px; border-bottom: 2px solid #1b4332; padding-bottom: 5px; }
+
+        .admin-khatma-row { display: flex; justify-content: space-between; align-items: center; background: #f9f9f9; padding: 8px; margin: 5px 0; border-radius: 6px; border: 1px solid #ddd; font-size: 15px; font-weight: bold; }
+
+        .text-controls { display: flex; gap: 5px; margin-bottom: 5px; }
+        .action-btn { background: #000; color: #d4af37; border: 1px solid #1b4332; padding: 5px 10px; border-radius: 5px; font-size: 14px; cursor: pointer; font-family: 'Amiri', serif; }
+
+        .mic-btn {
+            background: #1b4332;
+            color: #d4af37;
+            border: none;
+            padding: 8px 12px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 18px;
+            margin-right: 5px;
+        }
+
+        .search-container {
+            display: flex;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        .search-box { flex: 1; padding: 12px; border-radius: 8px; border: 2px solid #1b4332; font-size: 18px; box-sizing: border-box; text-align: right; background: #fff; }
+
+        .search-mic-btn {
+            background: #1b4332;
+            color: #d4af37;
+            border: 2px solid #1b4332;
+            padding: 11px 15px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 20px;
+            margin-right: 8px;
+            box-sizing: border-box;
+            transition: background 0.2s;
+        }
+        .search-mic-btn:active {
+            background: #0f281e;
+        }
+
+        .tabs-container { display: flex; gap: 10px; margin-bottom: 15px; }
+
+        .tab-btn {
+            flex: 1;
+            padding: 10px;
+            border: 2px solid #333;
+            border-radius: 8px;
+            font-weight: 900;
+            cursor: pointer;
+            font-size: 19px;
+            font-family: 'Amiri', serif;
+            color: #fff;
+            transition: all 0.2s ease;
+            box-shadow: 0 3px 6px rgba(0,0,0,0.15);
+        }
+
+        #allTab { background-color: #1b4332; }
+        #imagesTab { background-color: #8B4513; }
+        #favTab { background-color: #4A0E4E; }
+
+        .tab-btn.active {
+            border: 3px solid #d4af37;
+            transform: scale(1.03);
+            box-shadow: 0 5px 10px rgba(0,0,0,0.3);
+        }
+
+        .khatma-item { background: #1b4332; color: #fff; padding: 15px; margin: 8px 0; border-radius: 8px; display: flex; justify-content: space-between; align-items: center; font-size: 20px; font-weight: bold; box-shadow: 2px 2px 5px rgba(0,0,0,0.1); }
+        .khatma-title { flex: 1; cursor: pointer; text-align: right; }
+
+        .loading-box { background: #fffdf0; border: 2px solid #1b4332; padding: 20px; border-radius: 12px; margin: 20px auto; max-width: 300px; font-size: 20px; font-weight: bold; color: #000; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
+        .progress-bar-container { background: #e2e8f0; border-radius: 10px; height: 15px; width: 100%; margin-top: 10px; overflow: hidden; border: 1px solid #1b4332; }
+        .progress-bar-fill { background: #1b4332; height: 100%; width: 0%; transition: width 0.2s ease; }
+
+        .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); z-index: 1000; justify-content: center; align-items: center; box-sizing: border-box; padding: 15px; }
+        .modal-card { background: #fffdf0; width: 100%; max-width: 500px; border-radius: 15px; border: 3px solid #1b4332; text-align: right; margin: auto; box-sizing: border-box; max-height: 90vh; display: flex; flex-direction: column; }
+        .modal-header { background: #1b4332; color: #d4af37; padding: 15px; font-size: 22px; border-bottom: 2px solid #d4af37; text-align: center; }
+        .modal-body { padding: 20px; font-size: 20px; overflow-y: auto; text-align: right; line-height: 1.8; color: #000; flex: 1; }
+        .close-btn { background-color: #1b4332; color: #d4af37; padding: 10px 30px; border-radius: 8px; border: 1px solid #d4af37; cursor: pointer; font-size: 18px; font-weight: bold; }
+    </style>
+
+    <script src="firebase-app.js"></script>
+    <script src="firebase-auth.js"></script>
+    <script src="firebase-database.js"></script>
+</head>
+<body oncopy="return false" oncontextmenu="return false">
+
+    <div class="sticky-top-container">
+        <div class="header-box" id="adminTrigger">مجربات كاظم الغيظ</div>
+
+        <div class="admin-form" id="adminForm">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                <h3 style="margin:0;">لوحة الإدارة</h3>
+                <button type="button" class="action-btn" style="background: #a93226; color: white;" onclick="closeAdminForm()">✕ إغلاق اللوحة</button>
+            </div>
+
+            <!-- حقل مفتاح Gemini API -->
+            <div class="admin-section-box" style="background: #eef9f2; border: 1px solid #1b4332;">
+                <div class="admin-section-title">إعدادات الذكاء الاصطناعي (Gemini)</div>
+                <input type="password" id="geminiApiKeyInput" placeholder="أدخل مفتاح Gemini API هنا..." style="width:100%; padding:8px; margin-bottom:5px; box-sizing: border-box;">
+                <button type="button" class="action-btn" style="width:100%; background:#1b4332; color:#d4af37;" onclick="saveGeminiKey()">حفظ مفتاح الـ API</button>
+            </div>
+
+            <!-- حقل الختمات النصية والتعديل -->
+            <div class="admin-section-box">
+                <div class="admin-section-title">إدارة الختمات (النصية والتعديل)</div>
+                <div id="adminTextListContainer" style="max-height: 150px; overflow-y: auto; margin-bottom: 10px;"></div>
+
+                <input type="hidden" id="editKeyId">
+
+                <!-- حقل العنوان مع زر الصوت -->
+                <div style="display: flex; align-items: center; margin-bottom: 5px;">
+                    <input type="text" id="singleTitle" placeholder="عنوان الختمة..." style="flex:1; padding:8px; box-sizing: border-box;">
+                    <button type="button" class="mic-btn" onclick="startDictation('singleTitle')" title="إدخال صوتی">🎙️</button>
+                </div>
+
+                <div class="text-controls">
+                    <button type="button" class="action-btn" onclick="selectAllText()">تحديد الكل</button>
+                    <button type="button" class="action-btn" onclick="copyText()">نسخ</button>
+                    <button type="button" class="action-btn" onclick="cutText()">قص</button>
+                </div>
+
+                <!-- حقل المحتوى مع زر الصوت -->
+                <div style="display: flex; align-items: flex-start; margin-bottom: 8px;">
+                    <textarea id="singleContent" placeholder="محتوى الختمة..." style="flex:1; height:100px; box-sizing: border-box;"></textarea>
+                    <button type="button" class="mic-btn" onclick="startDictation('singleContent')" title="إدخال صوتی">🎙️</button>
+                </div>
+
+                <label style="display: block; margin-bottom: 5px; font-weight: bold; font-size: 14px;">تغيير/إضافة صورة (اختياري):</label>
+                <input type="file" id="singleImageFile" accept="image/*" style="width:100%; margin-bottom: 8px; box-sizing: border-box;">
+
+                <div id="imagePreviewContainer" style="margin: 5px 0 10px 0;">
+                    <img id="currentImagePreview" src="" style="max-width: 80px; display: none; border: 1px solid #ccc; padding: 2px; border-radius: 4px;" alt="معاينة الصورة">
+                </div>
+
+                <button id="saveSingleBtn" style="width:100%; padding:8px; background:#1b4332; color:white; border:none; font-weight:bold; cursor:pointer;">حفظ / تعديل الختمة النصية</button>
+
+                <hr style="margin: 12px 0;">
+                <textarea id="bulkArea" placeholder="إضافة جماعية (افصل بينها بـ ~~~)..." style="width:100%; height:60px; box-sizing: border-box; margin-bottom: 5px;"></textarea>
+                <button id="saveBtn" style="width:100%; padding:8px; background:#1b4332; color:white; border:none; font-weight:bold; cursor:pointer;">حفظ جماعي للنصوص</button>
+            </div>
+
+            <!-- حقل الختمات المصورة (الذكية) -->
+            <div class="admin-section-box">
+                <div class="admin-section-title">إدارة الختمات المصورة (الذكية)</div>
+                <div id="adminImageListContainer" style="max-height: 150px; overflow-y: auto; margin-bottom: 10px;"></div>
+
+                <h4 style="margin:5px 0; font-size: 15px;">رفع صور متعددة واستخراج العناوين تلقائياً</h4>
+                <input type="file" id="multiImagesInput" accept="image/*" multiple style="width:100%; margin-bottom: 8px; box-sizing: border-box;">
+                <button id="saveMultiImagesBtn" style="width:100%; padding:8px; background:#8B4513; color:white; border:none; font-weight:bold; cursor:pointer;">رفع ومعالجة الصور بالذكاء الاصطناعي</button>
+                <div id="ocrProgress" style="font-size: 13px; margin-top: 5px; font-weight: bold; color: #1b4332;"></div>
+            </div>
+
+        </div>
+
+        <!-- خانة البحث الرئيسية مع زر الميكروفون المدمج -->
+        <div class="search-container">
+            <input type="text" id="searchInput" class="search-box" placeholder="ابحث باسم الختمة أو بكلمة منها..." onkeyup="filterKhatmas()">
+            <button type="button" class="search-mic-btn" onclick="startSearchDictation()" title="بحث صوتي">🎙️</button>
+        </div>
+
+        <div class="tabs-container">
+            <button class="tab-btn active" id="allTab" onclick="switchTab('all')">الختمات</button>
+            <button class="tab-btn" id="imagesTab" onclick="switchTab('images')">ختمات مصورة</button>
+            <button class="tab-btn" id="favTab" onclick="switchTab('fav')">المفضلة</button>
+        </div>
+    </div>
+
+    <div id="listContainer">
+        <div class="loading-box" id="loadingBoxContainer">
+            <div>جاري تحميل الختمات... <span id="progressPercent">0</span>%</div>
+            <div class="progress-bar-container">
+                <div class="progress-bar-fill" id="progressBarFill"></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="modalOverlay">
+        <div class="modal-card">
+            <div class="modal-header" id="displayTitle"></div>
+            <div class="modal-body" id="displayContent"></div>
+            <div style="padding:15px; text-align:center;"><button class="close-btn" onclick="document.getElementById('modalOverlay').style.display='none'">إغلاق</button></div>
+        </div>
+    </div>
+    <script src="offline-store.js"></script>
+    <script src="app.js"></script>
+</body>
+</html>
