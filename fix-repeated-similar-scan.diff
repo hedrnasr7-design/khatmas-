@@ -1,0 +1,93 @@
+From 74a1f7300f141bbf64e154d6a01941debaff5f9b Mon Sep 17 00:00:00 2001
+From: Manus <manus@users.noreply.github.com>
+Date: Mon, 7 Sep 2026 20:56:35 +0000
+Subject: [PATCH] Prevent repeated duplicate scans and deleted image
+ restoration
+
+---
+ app.js | 28 +++++++++++++++++++++++++---
+ 1 file changed, 25 insertions(+), 3 deletions(-)
+
+diff --git a/app.js b/app.js
+index 2e37402..64f5b57 100644
+--- a/app.js
++++ b/app.js
+@@ -18,6 +18,19 @@ const firebaseConfig = {
+         let syncInProgress = false;
+         let lastSyncAttempt = 0;
+         let displayedSimilarGroups = [];
++        let similarScanHasRun = false;
++        let deletedKhatmaKeys = new Set(JSON.parse(localStorage.getItem('deleted_khatma_keys') || '[]'));
++
++        function rememberDeletedKhatma(key) {
++            deletedKhatmaKeys.add(key);
++            localStorage.setItem('deleted_khatma_keys', JSON.stringify([...deletedKhatmaKeys]));
++        }
++
++        function removeDeletedKhatmaFromData(data) {
++            const filtered = { ...(data || {}) };
++            deletedKhatmaKeys.forEach(key => delete filtered[key]);
++            return filtered;
++        }
+ 
+         function toArabicNum(n) {
+             return n.toString().replace(/\d/g, d => '٠١٢٣٤٥٦٧٨٩'[d]);
+@@ -147,7 +160,7 @@ const firebaseConfig = {
+             try {
+                 const cachedData = await OfflineStore.getAllKhatmas();
+                 if (Object.keys(cachedData).length > 0) {
+-                    allKhatmas = cachedData;
++                    allKhatmas = removeDeletedKhatmaFromData(cachedData);
+                     stopLoadingProgress();
+                     renderCurrentData();
+                     return true;
+@@ -193,14 +206,14 @@ const firebaseConfig = {
+                     throw new Error(`تعذر جلب التحديثات: ${response.status}`);
+                 }
+ 
+-                const data = (await response.json()) || {};
++                const data = removeDeletedKhatmaFromData((await response.json()) || {});
+                 await OfflineStore.replaceAllKhatmas(data);
+ 
+                 const newEtag = response.headers.get('ETag');
+                 if (newEtag) await OfflineStore.setMeta('firebase-etag', newEtag);
+                 await OfflineStore.setMeta('last-successful-sync', new Date().toISOString());
+ 
+-                allKhatmas = data;
++                allKhatmas = removeDeletedKhatmaFromData(data);
+                 localStorage.removeItem('offline_khatmas_perfect');
+                 stopLoadingProgress();
+                 renderCurrentData();
+@@ -798,6 +811,7 @@ window.scanSimilarImages = async () => {
+     const status = document.getElementById('similarImagesStatus');
+     const container = document.getElementById('similarImagesContainer');
+     if (!status || !container) return;
++    if (similarScanHasRun) return;
+     const records = Object.entries(allKhatmas).filter(([, value]) => value && value.image && value.image.trim() !== '');
+     if (records.length < 2) {
+         displayedSimilarGroups = [];
+@@ -805,6 +819,13 @@ window.scanSimilarImages = async () => {
+         container.innerHTML = '';
+         return;
+     }
++    similarScanHasRun = true;
++    const scanButton = document.getElementById('scanSimilarImagesBtn');
++    if (scanButton) {
++        scanButton.disabled = true;
++        scanButton.style.opacity = '0.65';
++        scanButton.innerText = 'تم الفحص — احذف المتشابه من النتائج';
++    }
+     status.innerText = `جارٍ فحص ${records.length} صورة...`;
+     container.innerHTML = '';
+     const hashed = [];
+@@ -875,6 +896,7 @@ window.deleteImageKhatma = async (key) => {
+     if (!confirm('هل تريد حذف الختمة كاملة؟ سيتم حذف الصورة والرقم والعنوان والمحتوى نهائيًا.')) return;
+     try {
+         await db.ref('khatmas/' + key).remove();
++        rememberDeletedKhatma(key);
+         delete allKhatmas[key];
+         favorites = favorites.filter(favoriteKey => favoriteKey !== key);
+         localStorage.setItem('user_favorites', JSON.stringify(favorites));
+-- 
+2.43.0
+
