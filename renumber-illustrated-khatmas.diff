@@ -1,0 +1,50 @@
+From b656eeb5cc7e6968b2cecd86328420ec18d08b49 Mon Sep 17 00:00:00 2001
+From: Manus <manus@users.noreply.github.com>
+Date: Mon, 7 Sep 2026 19:26:49 +0000
+Subject: [PATCH] Renumber illustrated khatmas after duplicate image deletion
+
+---
+ app.js | 13 +++++++++++++
+ 1 file changed, 13 insertions(+)
+
+diff --git a/app.js b/app.js
+index 8a9c8f8..d85c9a3 100644
+--- a/app.js
++++ b/app.js
+@@ -333,6 +333,14 @@ const firebaseConfig = {
+             return parseInt(val, 10) || 0;
+         }
+ 
++        // يعيد ترقيم العنوان للعرض فقط، مع إبقاء العنوان المحفوظ كما هو.
++        // هذا يمنع ظهور فجوات في تسلسل الختمات المصوّرة بعد حذف صورة متشابهة.
++        function renumberImageTitleForDisplay(title, sequence) {
++            const originalTitle = String(title || 'بدون عنوان');
++            const withoutLeadingNumber = originalTitle.replace(/^\s*[\d٠-٩]+\s*[-_–—.:،)]*\s*/, '');
++            return `${toArabicNum(sequence)}_ ${withoutLeadingNumber || originalTitle}`;
++        }
++
+         window.renderList = (data, view = 'all') => {
+             const container = document.getElementById('listContainer');
+             if (!container) return;
+@@ -345,6 +353,7 @@ const firebaseConfig = {
+ 
+             const sortedKeys = Object.keys(data).sort((a, b) => extractNumber(data[a].title) - extractNumber(data[b].title));
+             let htmlContent = '';
++            let imageSequence = 0;
+ 
+             sortedKeys.forEach(key => {
+                 const hasImage = data[key].image && data[key].image.trim() !== "";
+@@ -354,6 +363,10 @@ const firebaseConfig = {
+                 if (view === 'images' && !hasImage) return;
+ 
+                 let displayTitle = data[key].title || "بدون عنوان";
++                if (view === 'images') {
++                    imageSequence++;
++                    displayTitle = renumberImageTitleForDisplay(displayTitle, imageSequence);
++                }
+                 const isFav = favorites.includes(key) ? '❤️' : '🤍';
+ 
+                 htmlContent += `
+-- 
+2.43.0
+
