@@ -1,0 +1,101 @@
+From bf7df4be5eac96251b4de21c1e40b1d85d654266 Mon Sep 17 00:00:00 2001
+From: Manus <manus@users.noreply.github.com>
+Date: Mon, 7 Sep 2026 20:32:10 +0000
+Subject: [PATCH] Keep duplicate scan results while deleting matches
+
+---
+ app.js | 39 +++++++++++++++++++++++++++++++++------
+ 1 file changed, 33 insertions(+), 6 deletions(-)
+
+diff --git a/app.js b/app.js
+index 2621303..2e37402 100644
+--- a/app.js
++++ b/app.js
+@@ -17,6 +17,7 @@ const firebaseConfig = {
+         let loaderTimer = null;
+         let syncInProgress = false;
+         let lastSyncAttempt = 0;
++        let displayedSimilarGroups = [];
+ 
+         function toArabicNum(n) {
+             return n.toString().replace(/\d/g, d => '٠١٢٣٤٥٦٧٨٩'[d]);
+@@ -799,6 +800,7 @@ window.scanSimilarImages = async () => {
+     if (!status || !container) return;
+     const records = Object.entries(allKhatmas).filter(([, value]) => value && value.image && value.image.trim() !== '');
+     if (records.length < 2) {
++        displayedSimilarGroups = [];
+         status.innerText = 'لا توجد صور كافية للفحص.';
+         container.innerHTML = '';
+         return;
+@@ -829,11 +831,28 @@ window.scanSimilarImages = async () => {
+         if (group.length > 1) groups.push(group);
+     }
+     if (!groups.length) {
++        displayedSimilarGroups = [];
+         status.innerText = 'لم يتم العثور على صور متشابهة.';
++        container.innerHTML = '';
+         return;
+     }
+-    status.innerText = `تم العثور على ${groups.length} مجموعة متشابهة.`;
+-    container.innerHTML = groups.map((group, groupIndex) => `
++    displayedSimilarGroups = groups;
++    renderSimilarImageGroups();
++};
++
++function renderSimilarImageGroups() {
++    const status = document.getElementById('similarImagesStatus');
++    const container = document.getElementById('similarImagesContainer');
++    if (!status || !container) return;
++
++    if (!displayedSimilarGroups.length) {
++        status.innerText = 'تمت إزالة الصور المتشابهة المعروضة.';
++        container.innerHTML = '';
++        return;
++    }
++
++    status.innerText = `تم العثور على ${displayedSimilarGroups.length} مجموعة متشابهة.`;
++    container.innerHTML = displayedSimilarGroups.map((group, groupIndex) => `
+         <div style="background:#fff; border:1px solid #bbb; border-radius:8px; padding:8px; margin:8px 0;">
+             <div style="font-weight:bold; color:#4A0E4E; margin-bottom:6px;">المجموعة ${groupIndex + 1} (${group.length} صور)</div>
+             ${group.map(item => {
+@@ -850,7 +869,7 @@ window.scanSimilarImages = async () => {
+                 </div>`;
+             }).join('')}
+         </div>`).join('');
+-};
++}
+ 
+ window.deleteImageKhatma = async (key) => {
+     if (!confirm('هل تريد حذف الختمة كاملة؟ سيتم حذف الصورة والرقم والعنوان والمحتوى نهائيًا.')) return;
+@@ -863,9 +882,12 @@ window.deleteImageKhatma = async (key) => {
+         await OfflineStore.setMeta('firebase-etag', null);
+         renderAdminLists(allKhatmas);
+         filterKhatmas();
+-        await scanSimilarImages();
++        displayedSimilarGroups = displayedSimilarGroups
++            .map(group => group.filter(item => item.key !== key))
++            .filter(group => group.length > 1);
++        renderSimilarImageGroups();
+     } catch (error) {
+-        alert('تعذر حذف الصورة. تأكد من تسجيل دخول المشرف واتصال الإنترنت.');
++        alert('تعذر حذف الختمة. تأكد من تسجيل دخول المشرف واتصال الإنترنت.');
+     }
+ };
+ 
+@@ -879,7 +901,12 @@ window.replaceImageOnly = (key, input) => {
+             await OfflineStore.setMeta('firebase-etag', null);
+             renderAdminLists(allKhatmas);
+             filterKhatmas();
+-            await scanSimilarImages();
++            displayedSimilarGroups.forEach(group => {
++                group.forEach(item => {
++                    if (item.key === key) item.value.image = compressedBase64;
++                });
++            });
++            renderSimilarImageGroups();
+             alert('تم استبدال الصورة بنجاح.');
+         } catch (error) {
+             alert('تعذر استبدال الصورة. تأكد من تسجيل دخول المشرف واتصال الإنترنت.');
+-- 
+2.43.0
+
