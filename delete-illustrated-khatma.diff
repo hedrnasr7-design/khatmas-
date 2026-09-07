@@ -1,0 +1,44 @@
+From f77e3246982c7104cdd8c1dcff96326c1fa9e2e8 Mon Sep 17 00:00:00 2001
+From: Manus <manus@users.noreply.github.com>
+Date: Mon, 7 Sep 2026 19:43:50 +0000
+Subject: [PATCH] Delete illustrated khatma record with duplicate image
+
+---
+ app.js | 14 ++++++++------
+ 1 file changed, 8 insertions(+), 6 deletions(-)
+
+diff --git a/app.js b/app.js
+index d85c9a3..7d8dc4a 100644
+--- a/app.js
++++ b/app.js
+@@ -832,19 +832,21 @@ window.scanSimilarImages = async () => {
+                         <label style="background:#1b4332;color:#fff;padding:4px 6px;border-radius:4px;font-size:12px;cursor:pointer;text-align:center;">استبدال
+                             <input type="file" accept="image/*" style="display:none" onchange="replaceImageOnly('${safeKey}', this)">
+                         </label>
+-                        <button type="button" style="background:#a93226;color:#fff;border:0;border-radius:4px;padding:4px 6px;font-size:12px;cursor:pointer;" onclick="deleteImageOnly('${safeKey}')">حذف الصورة</button>
++                        <button type="button" style="background:#a93226;color:#fff;border:0;border-radius:4px;padding:4px 6px;font-size:12px;cursor:pointer;" onclick="deleteImageKhatma('${safeKey}')">حذف الختمة</button>
+                     </div>
+                 </div>`;
+             }).join('')}
+         </div>`).join('');
+ };
+ 
+-window.deleteImageOnly = async (key) => {
+-    if (!confirm('هل تريد حذف الصورة فقط والإبقاء على عنوان الختمة ومحتواها؟')) return;
++window.deleteImageKhatma = async (key) => {
++    if (!confirm('هل تريد حذف الختمة كاملة؟ سيتم حذف الصورة والرقم والعنوان والمحتوى نهائيًا.')) return;
+     try {
+-        await db.ref('khatmas/' + key).update({ image: '' });
+-        if (allKhatmas[key]) allKhatmas[key].image = '';
+-        await OfflineStore.putKhatma(key, allKhatmas[key]);
++        await db.ref('khatmas/' + key).remove();
++        delete allKhatmas[key];
++        favorites = favorites.filter(favoriteKey => favoriteKey !== key);
++        localStorage.setItem('user_favorites', JSON.stringify(favorites));
++        await OfflineStore.deleteKhatma(key);
+         await OfflineStore.setMeta('firebase-etag', null);
+         renderAdminLists(allKhatmas);
+         filterKhatmas();
+-- 
+2.43.0
+
