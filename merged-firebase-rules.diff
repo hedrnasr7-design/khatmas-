@@ -1,0 +1,32 @@
+From 4a3a3e7bce539f9d6a08404dea7e09a7b6e64fbb Mon Sep 17 00:00:00 2001
+From: Manus <manus@users.noreply.github.com>
+Date: Tue, 8 Sep 2026 14:46:53 +0000
+Subject: [PATCH] Merge Firebase rules for shared quotes
+
+---
+ database.rules.json | 9 ++++++++-
+ 1 file changed, 8 insertions(+), 1 deletion(-)
+
+diff --git a/database.rules.json b/database.rules.json
+index 233821e..ce391f5 100644
+--- a/database.rules.json
++++ b/database.rules.json
+@@ -11,7 +11,14 @@
+     },
+     "appSettings": {
+       ".read": true,
+-      ".write": "auth != null && auth.token.email === 'hedrnasr7@gmail.com'"
++      "theme": {
++        ".write": "auth != null && auth.token.email == 'hedrnasr7@gmail.com'",
++        ".validate": "newData.hasChildren(['font', 'preset', 'tabColors'])"
++      },
++      "quotes": {
++        ".write": "auth != null && auth.token.email == 'hedrnasr7@gmail.com'",
++        ".validate": "newData.hasChildren(['texts', 'bg', 'text', 'border', 'size', 'speed']) && newData.child('bg').isString() && newData.child('text').isString() && newData.child('border').isString() && newData.child('size').isNumber() && newData.child('speed').isNumber()"
++      }
+     }
+   }
+ }
+-- 
+2.43.0
+
