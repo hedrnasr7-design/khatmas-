@@ -1,0 +1,127 @@
+From 4d80dde9edea3462cdbc044c421c31ae14277850 Mon Sep 17 00:00:00 2001
+From: Manus <manus@users.noreply.github.com>
+Date: Tue, 8 Sep 2026 17:34:53 +0000
+Subject: [PATCH] Upload background audio from admin panel to GitHub
+
+---
+ app.js     | 61 +++++++++++++++++++++++++++++++++++++++++++++++++-----
+ index.html |  8 +++++--
+ 2 files changed, 62 insertions(+), 7 deletions(-)
+
+diff --git a/app.js b/app.js
+index 6be3972..30121b4 100644
+--- a/app.js
++++ b/app.js
+@@ -22,6 +22,8 @@ const firebaseConfig = {
+         let displayedSimilarGroups = [];
+         let similarScanHasRun = false;
+         let deletedKhatmaKeys = new Set(JSON.parse(localStorage.getItem('deleted_khatma_keys') || '[]'));
++        const GITHUB_AUDIO_REPO = 'hedrnasr7-design/khatmas-';
++        const GITHUB_AUDIO_PATH = 'background-audio.mp3';
+         const BACKGROUND_AUDIO_URL = './background-audio.mp3';
+         let backgroundAudioObjectUrl = null;
+         let audioInteractionBound = false;
+@@ -88,20 +90,28 @@ const firebaseConfig = {
+ 
+         async function loadBackgroundAudio() {
+             try {
++                let remoteAudioUrl = BACKGROUND_AUDIO_URL;
++                try {
++                    const metaResponse = await fetch(`https://api.github.com/repos/${GITHUB_AUDIO_REPO}/contents/${GITHUB_AUDIO_PATH}`, { cache: 'no-store' });
++                    if (metaResponse.ok) {
++                        const metadata = await metaResponse.json();
++                        if (metadata.sha) remoteAudioUrl = `https://raw.githubusercontent.com/${GITHUB_AUDIO_REPO}/main/${GITHUB_AUDIO_PATH}?v=${metadata.sha}`;
++                    }
++                } catch (error) {}
+                 let cachedRecord = await OfflineStore.getAudio('background').catch(() => null);
+-                if (!cachedRecord || cachedRecord.url !== BACKGROUND_AUDIO_URL) {
+-                    const audioResponse = await fetch(`${BACKGROUND_AUDIO_URL}?v=1`, { cache: 'no-store' });
++                if (!cachedRecord || cachedRecord.url !== remoteAudioUrl) {
++                    const audioResponse = await fetch(remoteAudioUrl, { cache: 'no-store' });
+                     if (audioResponse.ok) {
+                         const blob = await audioResponse.blob();
+-                        cachedRecord = { url: BACKGROUND_AUDIO_URL, blob, name: 'background-audio.mp3' };
++                        cachedRecord = { url: remoteAudioUrl, blob, name: 'background-audio.mp3' };
+                         await OfflineStore.putAudio('background', cachedRecord);
+                     }
+                 }
+-                await applyBackgroundAudio({ url: BACKGROUND_AUDIO_URL }, cachedRecord);
++                await applyBackgroundAudio({ url: remoteAudioUrl }, cachedRecord);
+             } catch (error) {
+                 console.warn('تعذر تحميل المقطع الصوتي العام:', error);
+                 const cachedRecord = await OfflineStore.getAudio('background').catch(() => null);
+-                if (cachedRecord?.blob && cachedRecord.url === BACKGROUND_AUDIO_URL) await applyBackgroundAudio({ url: BACKGROUND_AUDIO_URL }, cachedRecord);
++                if (cachedRecord?.blob) await applyBackgroundAudio({ url: cachedRecord.url }, cachedRecord);
+             }
+         }
+ 
+@@ -118,6 +128,47 @@ const firebaseConfig = {
+             }
+         };
+ 
++        window.uploadAudioToGitHub = async () => {
++            const token = document.getElementById('githubAudioToken')?.value.trim();
++            const input = document.getElementById('githubAudioInput');
++            const status = document.getElementById('githubAudioStatus');
++            const file = input?.files?.[0];
++            if (!token) { if (status) status.innerText = 'ألصق رمز GitHub أولًا.'; return; }
++            if (!file) { if (status) status.innerText = 'اختر ملفًا صوتيًا أولًا.'; return; }
++            if (!file.type.startsWith('audio/')) { if (status) status.innerText = 'الملف المختار ليس ملفًا صوتيًا.'; return; }
++            if (file.size > 25 * 1024 * 1024) { if (status) status.innerText = 'حجم الملف أكبر من 25 ميغابايت.'; return; }
++            try {
++                if (status) status.innerText = 'جارٍ تجهيز الملف وقراءة النسخة الحالية...';
++                const headers = { Authorization: `Bearer ${token}`, Accept: 'application/vnd.github+json', 'X-GitHub-Api-Version': '2022-11-28' };
++                const apiUrl = `https://api.github.com/repos/${GITHUB_AUDIO_REPO}/contents/${GITHUB_AUDIO_PATH}`;
++                const existingResponse = await fetch(apiUrl, { headers, cache: 'no-store' });
++                let sha = null;
++                if (existingResponse.ok) sha = (await existingResponse.json()).sha;
++                else if (existingResponse.status !== 404) throw new Error(`GitHub ${existingResponse.status}: ${(await existingResponse.text()).slice(0, 180)}`);
++                const base64 = await new Promise((resolve, reject) => {
++                    const reader = new FileReader();
++                    reader.onload = () => resolve(String(reader.result).split(',')[1]);
++                    reader.onerror = () => reject(new Error('تعذر قراءة الملف الصوتي.'));
++                    reader.readAsDataURL(file);
++                });
++                if (status) status.innerText = 'جارٍ رفع المقطع إلى GitHub...';
++                const body = { message: 'Update background audio', content: base64, branch: 'main' };
++                if (sha) body.sha = sha;
++                const uploadResponse = await fetch(apiUrl, { method: 'PUT', headers: { ...headers, 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
++                const result = await uploadResponse.json();
++                if (!uploadResponse.ok) throw new Error(`GitHub ${uploadResponse.status}: ${result.message || 'تعذر الرفع'}`);
++                const remoteUrl = `https://raw.githubusercontent.com/${GITHUB_AUDIO_REPO}/main/${GITHUB_AUDIO_PATH}?v=${result.content?.sha || Date.now()}`;
++                await OfflineStore.putAudio('background', { url: remoteUrl, blob: file, name: file.name });
++                await applyBackgroundAudio({ url: remoteUrl }, { url: remoteUrl, blob: file, name: file.name });
++                if (input) input.value = '';
++                if (document.getElementById('githubAudioToken')) document.getElementById('githubAudioToken').value = '';
++                if (status) status.innerText = 'تم رفع المقطع إلى GitHub. سيظهر للجميع بعد تحديث GitHub Pages.';
++            } catch (error) {
++                console.error('فشل رفع المقطع إلى GitHub:', error);
++                if (status) status.innerText = 'تعذر الرفع: ' + (error.message || 'تحقق من الرمز والصلاحيات.');
++            }
++        };
++
+         function toArabicNum(n) {
+             return n.toString().replace(/\d/g, d => '٠١٢٣٤٥٦٧٨٩'[d]);
+         }
+diff --git a/index.html b/index.html
+index cc3013a..83374ec 100644
+--- a/index.html
++++ b/index.html
+@@ -220,8 +220,12 @@
+ 
+             <div class="admin-section-box" style="background:#fff8e8; border:1px solid #8B4513;">
+                 <div class="admin-section-title" style="color:#8B4513; border-color:#8B4513;">المقطع الصوتي العام</div>
+-                <p style="font-size:13px; margin:4px 0 8px; color:#555;">المقطع الحالي مضمّن في الموقع باسم <b>background-audio.mp3</b> ويعمل بالتكرار لجميع المستخدمين. لتغييره، استبدل الملف نفسه داخل مستودع GitHub ثم أعد النشر.</p>
+-                <div style="font-size:13px; color:#1b4332; font-weight:bold;">يستطيع كل مستخدم إيقافه أو تشغيله من الزر الموجود أسفل الشاشة.</div>
++                <p style="font-size:13px; margin:4px 0 8px; color:#555;">ارفع ملف MP3 إلى مستودع GitHub ليحل محل <b>background-audio.mp3</b>. يلزم رمز GitHub بصلاحية Contents: Read and write، ولا يتم حفظ الرمز داخل التطبيق.</p>
++                <input type="password" id="githubAudioToken" placeholder="الصق GitHub Fine-grained token هنا" autocomplete="off" style="width:100%; padding:8px; margin-bottom:6px; box-sizing:border-box; direction:ltr;">
++                <input type="file" id="githubAudioInput" accept="audio/*" style="width:100%; margin-bottom:8px; box-sizing:border-box;">
++                <button type="button" class="action-btn" style="width:100%; background:#24292f; color:#fff;" onclick="uploadAudioToGitHub()">رفع المقطع إلى GitHub</button>
++                <div id="githubAudioStatus" style="font-size:13px; margin-top:6px; color:#1b4332; font-weight:bold;"></div>
++                <div style="font-size:12px; margin-top:6px; color:#8B4513;">بعد الرفع قد يحتاج GitHub Pages دقيقة أو أكثر لتحديث الملف.</div>
+             </div>
+ 
+             <!-- تخصيص مظهر الواجهة -->
+-- 
+2.43.0
+
