@@ -1,0 +1,11 @@
+rules_version = '2';
+
+service firebase.storage {
+  match /b/{bucket}/o {
+    match /site-audio/{allPaths=**} {
+      allow read: if true;
+      allow write, delete: if request.auth != null
+        && request.auth.token.email == 'hedrnasr7@gmail.com';
+    }
+  }
+}
