@@ -1,0 +1,25 @@
+From 8caef270d3ad4dc0af442e660869d06792ba1ce9 Mon Sep 17 00:00:00 2001
+From: Manus <manus@users.noreply.github.com>
+Date: Tue, 8 Sep 2026 15:07:10 +0000
+Subject: [PATCH] Fill header image width without side borders
+
+---
+ index.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/index.html b/index.html
+index c101f4f..187c8d2 100644
+--- a/index.html
++++ b/index.html
+@@ -68,7 +68,7 @@
+         }
+ 
+         .header-box { background-color: #000000; padding: 0; border-radius: 12px; margin-bottom: 8px; font-weight: bold; cursor: pointer; border: 2px solid #1b4332; min-height: 0; overflow: hidden; box-sizing: border-box; }
+-        .header-box img { display:block; width:100%; height:clamp(130px, 20vw, 260px); object-fit:contain; object-position:center top; pointer-events:none; }
++        .header-box img { display:block; width:100%; height:clamp(130px, 20vw, 260px); object-fit:cover; object-position:center top; pointer-events:none; }
+         .date-bar { width:var(--content-width); display:flex; align-items:center; justify-content:center; gap:clamp(5px, 1.2vw, 12px); min-height:42px; background:var(--date-bg, #d9f0e2); color:var(--date-text, #1b4332); border:2px solid var(--date-border, #1b4332); border-radius:10px; padding:4px 8px; margin:6px auto 8px !important; font-family:var(--date-font, 'Amiri', serif); font-size:17px; font-weight:bold; line-height:1.35; text-align:center; box-sizing:border-box; white-space:nowrap; transition:background-color .2s ease,color .2s ease; }
+         .date-bar > div { display:inline; }
+         .date-separator { display:inline !important; font-family:Arial, sans-serif; font-weight:bold; }
+-- 
+2.43.0
+
