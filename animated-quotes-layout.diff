@@ -1,0 +1,187 @@
+From 7a60e0ec3c215e714cb44ee08598d9d4af453f2c Mon Sep 17 00:00:00 2001
+From: Manus <manus@users.noreply.github.com>
+Date: Tue, 8 Sep 2026 11:48:28 +0000
+Subject: [PATCH] Add animated quotes panel and refine header layout
+
+---
+ app.js     | 73 +++++++++++++++++++++++++++++++++++++++++++++++++++++-
+ index.html | 36 +++++++++++++++++++++------
+ 2 files changed, 101 insertions(+), 8 deletions(-)
+
+diff --git a/app.js b/app.js
+index a6c398c..f1f505e 100644
+--- a/app.js
++++ b/app.js
+@@ -1289,7 +1289,78 @@ async function loadGlobalThemeSettings() {
+ 
+ loadGlobalThemeSettings();
+ 
+-// نهاية تخصيص المظهر
++const defaultQuotesSettings = { texts: [], bg: '#fffdf0', text: '#1b4332', border: '#1b4332', size: 18, speed: 22 };
++
++function applyQuotesSettings(settings, saveLocal = true) {
++    const merged = { ...defaultQuotesSettings, ...(settings || {}) };
++    const texts = Array.isArray(merged.texts) ? merged.texts : String(merged.texts || '').split('\n');
++    const cleanTexts = texts.map(text => String(text || '').trim()).filter(Boolean);
++    const box = document.getElementById('quotesBox');
++    const track = document.getElementById('quotesTrack');
++    if (box && track) {
++        const quoteLine = cleanTexts.join('   •   ');
++        track.textContent = quoteLine ? `${quoteLine}   •   ${quoteLine}` : '';
++        box.style.display = cleanTexts.length ? 'flex' : 'none';
++        box.style.setProperty('--quotes-bg', merged.bg);
++        box.style.setProperty('--quotes-text', merged.text);
++        box.style.setProperty('--quotes-border', merged.border);
++        box.style.setProperty('--quotes-size', `${Math.max(12, Math.min(40, Number(merged.size) || 18))}px`);
++        box.style.setProperty('--quotes-speed', `${Math.max(8, Math.min(120, Number(merged.speed) || 22))}s`);
++    }
++    const input = document.getElementById('quotesTextInput');
++    const bg = document.getElementById('quotesBgColor');
++    const text = document.getElementById('quotesTextColor');
++    const border = document.getElementById('quotesBorderColor');
++    const size = document.getElementById('quotesFontSize');
++    const speed = document.getElementById('quotesSpeed');
++    if (input) input.value = cleanTexts.join('\n');
++    if (bg) bg.value = merged.bg;
++    if (text) text.value = merged.text;
++    if (border) border.value = merged.border;
++    if (size) size.value = merged.size;
++    if (speed) speed.value = merged.speed;
++    if (saveLocal) localStorage.setItem('app_quotes_settings', JSON.stringify({ ...merged, texts: cleanTexts }));
++}
++
++window.saveQuotesSettings = async () => {
++    const settings = {
++        texts: (document.getElementById('quotesTextInput')?.value || '').split('\n').map(text => text.trim()).filter(Boolean),
++        bg: document.getElementById('quotesBgColor')?.value || defaultQuotesSettings.bg,
++        text: document.getElementById('quotesTextColor')?.value || defaultQuotesSettings.text,
++        border: document.getElementById('quotesBorderColor')?.value || defaultQuotesSettings.border,
++        size: Number(document.getElementById('quotesFontSize')?.value) || defaultQuotesSettings.size,
++        speed: Number(document.getElementById('quotesSpeed')?.value) || defaultQuotesSettings.speed
++    };
++    applyQuotesSettings(settings);
++    const status = document.getElementById('quotesStatus');
++    try {
++        await db.ref('appSettings/quotes').set({ ...settings, updatedAt: firebase.database.ServerValue.TIMESTAMP });
++        if (status) status.innerText = 'تم حفظ الاقتباسات وتثبيتها لجميع المستخدمين.';
++    } catch (error) {
++        console.error('تعذر حفظ الاقتباسات العامة:', error);
++        if (status) status.innerText = 'حُفظت الاقتباسات على هذا الجهاز فقط؛ تعذر حفظها لجميع المستخدمين.';
++    }
++};
++
++function loadLocalQuotesSettings() {
++    try { return JSON.parse(localStorage.getItem('app_quotes_settings') || 'null') || defaultQuotesSettings; } catch (error) { return defaultQuotesSettings; }
++}
++
++applyQuotesSettings(loadLocalQuotesSettings(), false);
++
++async function loadGlobalQuotesSettings() {
++    try {
++        const snapshot = await db.ref('appSettings/quotes').once('value');
++        const remote = snapshot.val();
++        if (remote) applyQuotesSettings(remote);
++    } catch (error) {
++        console.warn('تعذر تحميل الاقتباسات العامة، سيُستخدم آخر إعداد محفوظ محليًا:', error);
++    }
++}
++
++loadGlobalQuotesSettings();
++
++// نهاية تخصيص المظهر والاقتباسات
+ 
+ 
+ // عرض اليوم والتاريخ الميلادي والهجري
+diff --git a/index.html b/index.html
+index ac14e08..c101f4f 100644
+--- a/index.html
++++ b/index.html
+@@ -67,8 +67,8 @@
+             box-shadow: 0 4px 6px -4px rgba(0,0,0,0.1);
+         }
+ 
+-        .header-box { background-color: #000000; padding: 0; border-radius: 12px; margin-bottom: 10px; font-weight: bold; cursor: pointer; border: 2px solid #1b4332; min-height: 160px; overflow: hidden; box-sizing: border-box; }
+-        .header-box img { display:block; width:100%; height:clamp(160px, 28vw, 360px); object-fit:cover; object-position:center; pointer-events:none; }
++        .header-box { background-color: #000000; padding: 0; border-radius: 12px; margin-bottom: 8px; font-weight: bold; cursor: pointer; border: 2px solid #1b4332; min-height: 0; overflow: hidden; box-sizing: border-box; }
++        .header-box img { display:block; width:100%; height:clamp(130px, 20vw, 260px); object-fit:contain; object-position:center top; pointer-events:none; }
+         .date-bar { width:var(--content-width); display:flex; align-items:center; justify-content:center; gap:clamp(5px, 1.2vw, 12px); min-height:42px; background:var(--date-bg, #d9f0e2); color:var(--date-text, #1b4332); border:2px solid var(--date-border, #1b4332); border-radius:10px; padding:4px 8px; margin:6px auto 8px !important; font-family:var(--date-font, 'Amiri', serif); font-size:17px; font-weight:bold; line-height:1.35; text-align:center; box-sizing:border-box; white-space:nowrap; transition:background-color .2s ease,color .2s ease; }
+         .date-bar > div { display:inline; }
+         .date-separator { display:inline !important; font-family:Arial, sans-serif; font-weight:bold; }
+@@ -101,17 +101,21 @@
+         .search-container {
+             display: flex;
+             align-items: center;
+-            margin-bottom: 10px;
++            margin-bottom: 6px;
+         }
+ 
+-        .search-box { flex: 1; padding: 10px; border-radius: 8px; border: 2px solid #1b4332; font-size: 17px; box-sizing: border-box; text-align: right; background: #fff; }
++        .search-box { flex: 1; padding: 7px 9px; height:44px; border-radius: 8px; border: 2px solid #1b4332; font-size: 15px; box-sizing: border-box; text-align: right; background: #fff; }
++
++        .quotes-box { width:var(--content-width); height:42px; margin:0 auto 8px; border:2px solid var(--quotes-border, #1b4332); border-radius:9px; overflow:hidden; display:flex; align-items:center; background:var(--quotes-bg, #fffdf0); color:var(--quotes-text, #1b4332); box-sizing:border-box; }
++        .quotes-track { display:inline-block; white-space:nowrap; padding-right:100%; font-size:var(--quotes-size, 18px); font-weight:bold; animation:quotesMarquee var(--quotes-speed, 22s) linear infinite; }
++        @keyframes quotesMarquee { from { transform:translateX(0); } to { transform:translateX(-100%); } }
+ 
+         .search-mic-btn {
+             display:flex !important;
+             flex:0 0 60px !important;
+             width:60px !important;
+             min-width:60px !important;
+-            height:54px !important;
++            height:44px !important;
+             align-items:center;
+             justify-content:center;
+             background:#1b4332 !important;
+@@ -120,7 +124,7 @@
+             padding:0 !important;
+             border-radius:8px;
+             cursor:pointer;
+-            font-size:24px;
++            font-size:21px;
+             line-height:1;
+             margin-right:8px;
+             box-sizing:border-box;
+@@ -131,7 +135,7 @@
+             transition:background 0.2s;
+         }
+         .search-mic-btn::before { content:none !important; }
+-        .search-mic-btn .mic-symbol { display:block !important; font-size:25px; line-height:1; font-family:Arial, sans-serif; }
++        .search-mic-btn .mic-symbol { display:block !important; font-size:22px; line-height:1; font-family:Arial, sans-serif; }
+         .search-mic-btn:active {
+             background: #0f281e;
+         }
+@@ -266,6 +270,22 @@
+                 <div id="themeStatus" style="font-size:13px; margin-top:6px; color:#1b4332; font-weight:bold;"></div>
+             </div>
+ 
++            <div class="admin-section-box">
++                <div class="admin-section-title">صندوق الاقتباسات المتحركة</div>
++                <label style="display:block; margin:6px 0 4px; font-weight:bold;">الاقتباسات (كل اقتباس في سطر مستقل)</label>
++                <textarea id="quotesTextInput" placeholder="اكتب الاقتباس الأول هنا...\nاكتب الاقتباس الثاني هنا..." style="width:100%; height:110px; padding:8px; box-sizing:border-box; resize:vertical;"></textarea>
++                <div style="display:grid; grid-template-columns:repeat(2,1fr); gap:8px; margin-top:8px;">
++                    <label style="font-weight:bold;">خلفية الصندوق<input id="quotesBgColor" type="color" value="#fffdf0" style="width:100%; height:36px;"></label>
++                    <label style="font-weight:bold;">لون الكتابة<input id="quotesTextColor" type="color" value="#1b4332" style="width:100%; height:36px;"></label>
++                    <label style="font-weight:bold;">لون الإطار<input id="quotesBorderColor" type="color" value="#1b4332" style="width:100%; height:36px;"></label>
++                    <label style="font-weight:bold;">حجم الكتابة<input id="quotesFontSize" type="number" min="12" max="40" value="18" style="width:100%; padding:7px; box-sizing:border-box;"></label>
++                </div>
++                <label style="display:block; margin:8px 0 4px; font-weight:bold;">سرعة الحركة (بالثواني؛ الرقم الأكبر أبطأ)</label>
++                <input id="quotesSpeed" type="number" min="8" max="120" value="22" style="width:100%; padding:8px; box-sizing:border-box; direction:ltr;">
++                <button type="button" class="action-btn" style="width:100%; margin-top:8px; background:#1b4332; color:#d4af37;" onclick="saveQuotesSettings()">حفظ الاقتباسات والإعدادات لجميع المستخدمين</button>
++                <div id="quotesStatus" style="font-size:13px; margin-top:6px; color:#1b4332; font-weight:bold;"></div>
++            </div>
++
+             <!-- إعدادات التاريخ -->
+             <div class="admin-section-box">
+                 <div class="admin-section-title">إعدادات التاريخ الظاهر أسفل الصورة</div>
+@@ -361,6 +381,8 @@
+             <button type="button" class="search-mic-btn" onclick="startSearchDictation()" title="بحث صوتي" aria-label="البحث الصوتي"><span class="mic-symbol" aria-hidden="true"><svg viewBox="0 0 24 24" width="27" height="27" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="2" width="6" height="12" rx="3"></rect><path d="M5 11a7 7 0 0 0 14 0"></path><path d="M12 18v4"></path><path d="M8 22h8"></path></svg></span></button>
+         </div>
+ 
++        <div id="quotesBox" class="quotes-box" style="display:none;" aria-label="اقتباسات متحركة"><div id="quotesTrack" class="quotes-track"></div></div>
++
+         <div class="tabs-container">
+             <button class="tab-btn active" id="allTab" onclick="switchTab('all')">الختمات</button>
+             <button class="tab-btn" id="imagesTab" onclick="switchTab('images')">ختمات مصورة</button>
+-- 
+2.43.0
+
