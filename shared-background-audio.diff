@@ -1,0 +1,300 @@
+From b08b9af89c874eea2d1d2f143454d5f4913894bb Mon Sep 17 00:00:00 2001
+From: Manus <manus@users.noreply.github.com>
+Date: Tue, 8 Sep 2026 10:12:50 +0000
+Subject: [PATCH] Add shared looping background audio feature
+
+---
+ app.js           | 130 +++++++++++++++++++++++++++++++++++++++++++++++
+ index.html       |  15 +++++-
+ offline-store.js |  35 ++++++++++++-
+ storage.rules    |  11 ++++
+ 4 files changed, 188 insertions(+), 3 deletions(-)
+ create mode 100644 storage.rules
+
+diff --git a/app.js b/app.js
+index dd8667b..78b4855 100644
+--- a/app.js
++++ b/app.js
+@@ -22,6 +22,9 @@ const firebaseConfig = {
+         let displayedSimilarGroups = [];
+         let similarScanHasRun = false;
+         let deletedKhatmaKeys = new Set(JSON.parse(localStorage.getItem('deleted_khatma_keys') || '[]'));
++        let backgroundAudioObjectUrl = null;
++        let backgroundAudioSettings = null;
++        let audioInteractionBound = false;
+ 
+         function rememberDeletedKhatma(key) {
+             deletedKhatmaKeys.add(key);
+@@ -34,6 +37,132 @@ const firebaseConfig = {
+             return filtered;
+         }
+ 
++        function updateBackgroundAudioButton() {
++            const audio = document.getElementById('backgroundAudio');
++            const button = document.getElementById('backgroundAudioToggle');
++            if (!audio || !button) return;
++            const hasSource = Boolean(audio.src);
++            button.style.display = hasSource ? 'block' : 'none';
++            button.innerText = !audio.paused ? '⏸' : '▶';
++            button.title = !audio.paused ? 'إيقاف المقطع الصوتي' : 'تشغيل المقطع الصوتي';
++            button.setAttribute('aria-label', button.title);
++        }
++
++        async function tryStartBackgroundAudio() {
++            const audio = document.getElementById('backgroundAudio');
++            if (!audio || !audio.src || localStorage.getItem('background_audio_enabled') === 'false') return;
++            try {
++                await audio.play();
++            } catch (error) {
++                // تمنع المتصفحات التشغيل التلقائي حتى يحدث تفاعل من المستخدم.
++            }
++            updateBackgroundAudioButton();
++        }
++
++        function bindAudioInteraction() {
++            if (audioInteractionBound) return;
++            audioInteractionBound = true;
++            const start = () => tryStartBackgroundAudio();
++            document.addEventListener('pointerdown', start, { passive: true });
++            document.addEventListener('keydown', start, { passive: true });
++        }
++
++        async function applyBackgroundAudio(settings, cachedRecord = null) {
++            const audio = document.getElementById('backgroundAudio');
++            if (!audio || !settings || !settings.url) return;
++            if (backgroundAudioObjectUrl) URL.revokeObjectURL(backgroundAudioObjectUrl);
++            backgroundAudioObjectUrl = null;
++            if (cachedRecord && cachedRecord.blob) {
++                backgroundAudioObjectUrl = URL.createObjectURL(cachedRecord.blob);
++                audio.src = backgroundAudioObjectUrl;
++            } else {
++                audio.src = settings.url;
++            }
++            audio.loop = true;
++            audio.onplay = updateBackgroundAudioButton;
++            audio.onpause = updateBackgroundAudioButton;
++            updateBackgroundAudioButton();
++            bindAudioInteraction();
++            await tryStartBackgroundAudio();
++        }
++
++        async function loadBackgroundAudio() {
++            try {
++                const response = await fetch(`${DATABASE_URL}/settings/audio.json?cache=${Date.now()}`, { cache: 'no-store' });
++                if (!response.ok) throw new Error(`تعذر جلب إعداد الصوت: ${response.status}`);
++                const settings = await response.json();
++                backgroundAudioSettings = settings && settings.url ? settings : null;
++                if (!backgroundAudioSettings) return;
++                let cachedRecord = await OfflineStore.getAudio('background').catch(() => null);
++                if (!cachedRecord || cachedRecord.url !== backgroundAudioSettings.url) {
++                    const audioResponse = await fetch(backgroundAudioSettings.url, { cache: 'no-store' });
++                    if (audioResponse.ok) {
++                        const blob = await audioResponse.blob();
++                        cachedRecord = { url: backgroundAudioSettings.url, blob, name: backgroundAudioSettings.name || '' };
++                        await OfflineStore.putAudio('background', cachedRecord);
++                    }
++                }
++                await applyBackgroundAudio(backgroundAudioSettings, cachedRecord);
++            } catch (error) {
++                console.warn('تعذر تحميل المقطع الصوتي العام:', error);
++                const cachedRecord = await OfflineStore.getAudio('background').catch(() => null);
++                if (cachedRecord?.blob) await applyBackgroundAudio({ url: cachedRecord.url }, cachedRecord);
++            }
++        }
++
++        window.toggleBackgroundAudio = async () => {
++            const audio = document.getElementById('backgroundAudio');
++            if (!audio || !audio.src) return;
++            if (audio.paused) {
++                localStorage.setItem('background_audio_enabled', 'true');
++                await tryStartBackgroundAudio();
++            } else {
++                localStorage.setItem('background_audio_enabled', 'false');
++                audio.pause();
++                updateBackgroundAudioButton();
++            }
++        };
++
++        window.uploadBackgroundAudio = async () => {
++            const input = document.getElementById('backgroundAudioInput');
++            const status = document.getElementById('backgroundAudioStatus');
++            const file = input?.files?.[0];
++            if (!file) { if (status) status.innerText = 'اختر ملفًا صوتيًا أولًا.'; return; }
++            if (!file.type.startsWith('audio/')) { if (status) status.innerText = 'الملف المختار ليس ملفًا صوتيًا.'; return; }
++            try {
++                if (status) status.innerText = 'جارٍ رفع المقطع الصوتي...';
++                const storageRef = firebase.storage().ref(`site-audio/background-${Date.now()}-${file.name}`);
++                const snapshot = await storageRef.put(file, { contentType: file.type });
++                const url = await snapshot.ref.getDownloadURL();
++                const settings = { url, name: file.name, type: file.type, size: file.size, updatedAt: Date.now(), enabled: true };
++                await db.ref('settings/audio').set(settings);
++                await OfflineStore.putAudio('background', { url, name: file.name, blob: file });
++                backgroundAudioSettings = settings;
++                await applyBackgroundAudio(settings, { url, name: file.name, blob: file });
++                if (input) input.value = '';
++                if (status) status.innerText = 'تم رفع وتفعيل المقطع الصوتي لجميع المستخدمين.';
++            } catch (error) {
++                console.error('فشل رفع المقطع الصوتي:', error);
++                if (status) status.innerText = 'تعذر رفع المقطع: ' + (error.code || error.message || 'تحقق من صلاحيات Firebase Storage.');
++            }
++        };
++
++        window.removeBackgroundAudio = async () => {
++            const status = document.getElementById('backgroundAudioStatus');
++            if (!confirm('هل تريد إيقاف وحذف المقطع الصوتي العام؟')) return;
++            try {
++                await db.ref('settings/audio').remove();
++                await OfflineStore.deleteAudio('background');
++                const audio = document.getElementById('backgroundAudio');
++                if (audio) { audio.pause(); audio.removeAttribute('src'); audio.load(); }
++                backgroundAudioSettings = null;
++                updateBackgroundAudioButton();
++                if (status) status.innerText = 'تم إيقاف وحذف المقطع الصوتي العام.';
++            } catch (error) {
++                if (status) status.innerText = 'تعذر حذف المقطع: ' + (error.code || error.message || 'تحقق من الصلاحيات.');
++            }
++        };
++
+         function toArabicNum(n) {
+             return n.toString().replace(/\d/g, d => '٠١٢٣٤٥٦٧٨٩'[d]);
+         }
+@@ -273,6 +402,7 @@ const firebaseConfig = {
+             startLoadingProgress();
+             await loadCachedData();
+             await syncDataFromNetwork();
++            loadBackgroundAudio();
+         }
+ 
+         function syncIfDue() {
+diff --git a/index.html b/index.html
+index 26dce94..adc45e5 100644
+--- a/index.html
++++ b/index.html
+@@ -180,6 +180,7 @@
+     <script src="firebase-app.js"></script>
+     <script src="firebase-auth.js"></script>
+     <script src="firebase-database.js"></script>
++    <script src="https://www.gstatic.com/firebasejs/7.24.0/firebase-storage.js"></script>
+ </head>
+ <body oncopy="return false" oncontextmenu="return false">
+ 
+@@ -214,6 +215,15 @@
+                 <button type="button" class="action-btn" style="width:100%; background:#1b4332; color:#d4af37;" onclick="saveGeminiKey()">حفظ مفتاح الـ API</button>
+             </div>
+ 
++            <div class="admin-section-box" style="background:#fff8e8; border:1px solid #8B4513;">
++                <div class="admin-section-title" style="color:#8B4513; border-color:#8B4513;">المقطع الصوتي العام</div>
++                <p style="font-size:13px; margin:4px 0 8px; color:#555;">يعمل المقطع لجميع المستخدمين مع التكرار التلقائي، وقد يمنع المتصفح التشغيل التلقائي حتى ينقر المستخدم على الصفحة.</p>
++                <input type="file" id="backgroundAudioInput" accept="audio/*" style="width:100%; margin-bottom:8px; box-sizing:border-box;">
++                <button type="button" class="action-btn" style="width:100%; background:#8B4513; color:#fff;" onclick="uploadBackgroundAudio()">رفع وتفعيل المقطع الصوتي</button>
++                <button type="button" class="action-btn" style="width:100%; margin-top:6px; background:#a93226; color:#fff;" onclick="removeBackgroundAudio()">إيقاف وحذف المقطع العام</button>
++                <div id="backgroundAudioStatus" style="font-size:13px; margin-top:6px; color:#1b4332; font-weight:bold;"></div>
++            </div>
++
+             <!-- تخصيص مظهر الواجهة -->
+             <div class="admin-section-box">
+                 <div class="admin-section-title">تخصيص مظهر الواجهة</div>
+@@ -371,6 +381,9 @@
+         </div>
+     </div>
+ 
++    <audio id="backgroundAudio" loop preload="auto" aria-label="المقطع الصوتي العام"></audio>
++    <button id="backgroundAudioToggle" type="button" onclick="toggleBackgroundAudio()" aria-label="تشغيل أو إيقاف المقطع الصوتي" title="تشغيل أو إيقاف المقطع الصوتي" style="display:none; position:fixed; left:14px; bottom:14px; z-index:1800; width:48px; height:48px; border:2px solid #d4af37; border-radius:50%; background:#1b4332; color:#fff; font-size:22px; cursor:pointer; box-shadow:0 3px 8px rgba(0,0,0,.3);">▶</button>
++
+     <div class="modal-overlay" id="modalOverlay">
+         <div class="modal-card">
+             <div class="modal-header" id="displayTitle"></div>
+@@ -381,4 +394,4 @@
+     <script src="offline-store.js"></script>
+     <script src="app.js?v=2"></script>
+ </body>
+-</html>
+\ No newline at end of file
++</html>
+diff --git a/offline-store.js b/offline-store.js
+index 7cc1a7e..c717900 100644
+--- a/offline-store.js
++++ b/offline-store.js
+@@ -1,8 +1,9 @@
+ const OfflineStore = (() => {
+     const DB_NAME = 'khatmas-offline-db';
+-    const DB_VERSION = 1;
++    const DB_VERSION = 2;
+     const KHATMAS_STORE = 'khatmas';
+     const META_STORE = 'meta';
++    const AUDIO_STORE = 'audio';
+     let databasePromise = null;
+ 
+     function open() {
+@@ -19,6 +20,9 @@ const OfflineStore = (() => {
+                 if (!database.objectStoreNames.contains(META_STORE)) {
+                     database.createObjectStore(META_STORE, { keyPath: 'key' });
+                 }
++                if (!database.objectStoreNames.contains(AUDIO_STORE)) {
++                    database.createObjectStore(AUDIO_STORE, { keyPath: 'key' });
++                }
+             };
+ 
+             request.onsuccess = () => resolve(request.result);
+@@ -96,6 +100,30 @@ const OfflineStore = (() => {
+         await transactionPromise(transaction);
+     }
+ 
++    async function getAudio(key) {
++        const database = await open();
++        return new Promise((resolve, reject) => {
++            const transaction = database.transaction(AUDIO_STORE, 'readonly');
++            const request = transaction.objectStore(AUDIO_STORE).get(key);
++            request.onsuccess = () => resolve(request.result || null);
++            request.onerror = () => reject(request.error);
++        });
++    }
++
++    async function putAudio(key, value) {
++        const database = await open();
++        const transaction = database.transaction(AUDIO_STORE, 'readwrite');
++        transaction.objectStore(AUDIO_STORE).put({ key, ...value });
++        await transactionPromise(transaction);
++    }
++
++    async function deleteAudio(key) {
++        const database = await open();
++        const transaction = database.transaction(AUDIO_STORE, 'readwrite');
++        transaction.objectStore(AUDIO_STORE).delete(key);
++        await transactionPromise(transaction);
++    }
++
+     return {
+         open,
+         getAllKhatmas,
+@@ -103,6 +131,9 @@ const OfflineStore = (() => {
+         putKhatma,
+         deleteKhatma,
+         getMeta,
+-        setMeta
++        setMeta,
++        getAudio,
++        putAudio,
++        deleteAudio
+     };
+ })();
+diff --git a/storage.rules b/storage.rules
+new file mode 100644
+index 0000000..e5fba51
+--- /dev/null
++++ b/storage.rules
+@@ -0,0 +1,11 @@
++rules_version = '2';
++
++service firebase.storage {
++  match /b/{bucket}/o {
++    match /site-audio/{allPaths=**} {
++      allow read: if true;
++      allow write, delete: if request.auth != null
++        && request.auth.token.email == 'hedrnasr7@gmail.com';
++    }
++  }
++}
+-- 
+2.43.0
+
