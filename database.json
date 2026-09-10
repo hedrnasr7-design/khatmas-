@@ -11,6 +11,12 @@
     },
     "appSettings": {
       ".read": true,
+      "dateDisplay": {
+        ".write": "auth != null && auth.token.email == 'hedrnasr7@gmail.com'"
+      },
+      "scheduleOverrides": {
+        ".write": "auth != null && auth.token.email == 'hedrnasr7@gmail.com'"
+      },
       "theme": {
         ".write": "auth != null && auth.token.email == 'hedrnasr7@gmail.com'",
         ".validate": "newData.hasChildren(['font', 'preset', 'tabColors'])"
