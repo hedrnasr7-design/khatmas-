@@ -1,0 +1,16 @@
+{
+  "rules": {
+    ".read": true,
+    ".write": false,
+    "khatmas": {
+      ".read": true,
+      "$khatmaId": {
+        ".write": "auth != null && auth.token.email == 'hedrnasr7@gmail.com'"
+      }
+    },
+    "appSettings": {
+      ".read": true,
+      ".write": "auth != null && auth.token.email == 'hedrnasr7@gmail.com'"
+    }
+  }
+}
