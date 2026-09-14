@@ -1,0 +1,11 @@
+<!doctype html>
+<html lang="ar" dir="rtl"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>فتح النسخة الجديدة</title>
+<body style="font-family:Arial;text-align:center;padding:50px;color:#173b36"><h2>جارٍ فتح النسخة الجديدة...</h2><p>إذا لم يفتح التطبيق تلقائيًا اضغط الزر.</p><button id="b" style="padding:14px 28px;border:0;border-radius:10px;background:#176b5d;color:#fff;font-size:18px">فتح التطبيق</button>
+<script>
+const target='./index.html?fresh='+Date.now();
+async function go(){
+ try{if(navigator.serviceWorker){const rs=await navigator.serviceWorker.getRegistrations();await Promise.all(rs.map(r=>r.unregister()));}if(window.caches){const ns=await caches.keys();await Promise.all(ns.map(n=>caches.delete(n)));}}catch(e){}
+ location.replace(target);
+}
+document.getElementById('b').onclick=go; setTimeout(go,800);
+</script></body></html>
