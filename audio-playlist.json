@@ -2,9 +2,24 @@
   "version": 1,
   "tracks": [
     {
-      "path": "background-audio.mp3",
-      "name": "background-audio.mp3",
-      "url": "./background-audio.mp3"
+      "path": "audio-playlist/1789797748931-1_4965779821142477117.mp3",
+      "name": "1_4965779821142477117.mp3",
+      "url": "https://raw.githubusercontent.com/hedrnasr7-design/khatmas-/main/audio-playlist/1789797748931-1_4965779821142477117.mp3?v=f2a439f7ed64584b33a3ea3b3a8602a5b187c1c5"
+    },
+    {
+      "path": "audio-playlist/1789797757646-1_4981026809014388453.mp3",
+      "name": "1_4981026809014388453.mp3",
+      "url": "https://raw.githubusercontent.com/hedrnasr7-design/khatmas-/main/audio-playlist/1789797757646-1_4981026809014388453.mp3?v=b883bd75720e4eecbf07e6de8f21391b79ab4110"
+    },
+    {
+      "path": "audio-playlist/1789797760338-1_4985737507669805306.mp3",
+      "name": "1_4985737507669805306.mp3",
+      "url": "https://raw.githubusercontent.com/hedrnasr7-design/khatmas-/main/audio-playlist/1789797760338-1_4985737507669805306.mp3?v=9b9d090d0f39c1d928b632b8bfbf4f02ad3cede6"
+    },
+    {
+      "path": "audio-playlist/1789797762397-1_5086896610399489001.mp3",
+      "name": "1_5086896610399489001.mp3",
+      "url": "https://raw.githubusercontent.com/hedrnasr7-design/khatmas-/main/audio-playlist/1789797762397-1_5086896610399489001.mp3?v=ef90fecdc367c9d31e60194b063f7cac076deb30"
     }
   ]
 }
