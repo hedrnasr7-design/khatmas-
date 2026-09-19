@@ -1,0 +1,10 @@
+{
+  "version": 1,
+  "tracks": [
+    {
+      "path": "background-audio.mp3",
+      "name": "background-audio.mp3",
+      "url": "./background-audio.mp3"
+    }
+  ]
+}
